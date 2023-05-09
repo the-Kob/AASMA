@@ -30,11 +30,13 @@ class GreedyAgent(Agent):
 
     def action(self) -> int:
         agents_positions = self.observation[:self.n_agents * 2]
-        # TODO - Expect 5-8 lines of code
-        #  You may use the two auxiliary methods down below
-        #  Warning: Your code should work for an arbitrary number of preys
-        #  (even though the examples considers a single one)
-        raise NotImplementedError()
+        true_agent_id = self.agent_id * 2
+        agent_position = agents_positions[true_agent_id:true_agent_id + 2]
+
+        preys_positions = self.observation[self.n_agents * 2:]
+        closest_prey_position = self.closest_prey(agent_position, preys_positions)
+
+        return self.direction_to_go(agent_position, closest_prey_position)
 
     # ################# #
     # Auxiliary Methods #
