@@ -29,7 +29,7 @@ class SimplifiedPredatorPrey(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array']}
 
     def __init__(self, grid_shape=(5, 5), n_agents=2, n_preys=1, prey_move_probs=(0.175, 0.175, 0.175, 0.175, 0.3),
-                 full_observable=False, penalty=-0.5, step_cost=-0.01, prey_capture_reward=5, max_steps=100, required_captors=2, n_food_sources=1):
+                 full_observable=False, penalty=-0.5, step_cost=-0.01, prey_capture_reward=5, max_steps=100, required_captors=2, n_foodpiles=1):
         
         self._grid_shape = grid_shape
         self.n_agents = n_agents
@@ -42,7 +42,9 @@ class SimplifiedPredatorPrey(gym.Env):
         self._agent_view_mask = (5, 5)
         self._required_captors = required_captors
 
-        self.n_food_sources = n_food_sources
+        self.n_foodpiles = n_foodpiles
+        self.food_depleted = None
+        self.food_pos = {_: None for _ in range(self.n_foodpiles)}
 
         self.action_space = MultiAgentActionSpace([spaces.Discrete(5) for _ in range(self.n_agents)])
         self.agent_pos = {_: None for _ in range(self.n_agents)}
@@ -90,6 +92,15 @@ class SimplifiedPredatorPrey(gym.Env):
                 col = col[0]
                 prey_pos.append((col, row))
 
+        food_pos = []
+        for food_id in range(self.n_foodpiles):
+            if (self.food_depleted[food_id] == False):
+                tag = f"F{food_id + 1}"
+                row, col = np.where(current_grid == tag)
+                row = row[0]
+                col = col[0]
+                food_pos.append((col, row))
+
         features = np.array(agent_pos + prey_pos).reshape(-1)
 
         return features
@@ -98,11 +109,15 @@ class SimplifiedPredatorPrey(gym.Env):
         self._total_episode_reward = [0 for _ in range(self.n_agents)]
         self.agent_pos = {}
         self.prey_pos = {}
+        self.food_pos = {}
+
 
         self.__init_full_obs()
         self._step_count = 0
         self._agent_dones = [False for _ in range(self.n_agents)]
         self._prey_alive = [True for _ in range(self.n_preys)]
+
+        self.food_depleted = [False for _ in range(self.n_foodpiles)]
 
         self.get_agent_obs()
         return [self.simplified_features() for _ in range(self.n_agents)]
@@ -182,6 +197,16 @@ class SimplifiedPredatorPrey(gym.Env):
                     self.prey_pos[prey_i] = pos
                     break
             self.__update_prey_view(prey_i)
+
+        for food_i in range(self.n_foodpiles):
+            while True:
+                pos = [self.np_random.randint(0, self._grid_shape[0] - 1),
+                        self.np_random.randint(0, self._grid_shape[1] - 1)]
+                if self._is_cell_vacant(pos) and (self._neighbour_agents(pos)[0] == 0):
+                    self.food_pos[food_i] = pos
+                    break
+            self._full_obs[self.food_pos[food_i][0]][self.food_pos[food_i][1]] = PRE_IDS['food'] + str(food_i + 1)
+
 
         self.__draw_base_img()
 
@@ -292,7 +317,7 @@ class SimplifiedPredatorPrey(gym.Env):
         if self.is_valid([pos[0] + 1, pos[1]]) and PRE_IDS['agent'] in self._full_obs[pos[0] + 1][pos[1]]:
             _count += 1
             neighbours_xy.append([pos[0] + 1, pos[1]])
-        if self.is_valid([pos[0] - 1, pos[1]]) and PRE_IDS['agent'] in self._full_obs[pos[0] - 1][pos[1]]:
+        if self.is_valid([pos[0] - 1, pos[1]]) and (PRE_IDS['agent'] in self._full_obs[pos[0] - 1][pos[1]] or PRE_IDS['food'] in self._full_obs[pos[0] - 1][pos[1]]):
             _count += 1
             neighbours_xy.append([pos[0] - 1, pos[1]])
         if self.is_valid([pos[0], pos[1] + 1]) and PRE_IDS['agent'] in self._full_obs[pos[0]][pos[1] + 1]:
@@ -336,6 +361,13 @@ class SimplifiedPredatorPrey(gym.Env):
                 draw_circle(img, self.prey_pos[prey_i], cell_size=CELL_SIZE, fill=PREY_COLOR)
                 write_cell_text(img, text=str(prey_i + 1), pos=self.prey_pos[prey_i], cell_size=CELL_SIZE,
                                 fill='white', margin=0.4)
+                
+        for foodpile_i in range(self.n_foodpiles):
+            if (self.food_depleted[foodpile_i] == False):
+                fill_cell(img, self.food_pos[foodpile_i], cell_size=CELL_SIZE, fill=FOOD_COLOR, margin=0.1)
+                #draw_circle(img, self.food_pos[foodpile_i], cell_size=35, fill=FOOD_COLOR)
+                #write_cell_text(img, text=str(foodpile_i + 1), pos=self.food_pos[foodpile_i], cell_size=105,
+                                #fill='white', margin=0.4)
 
         img = np.asarray(img)
         if mode == 'rgb_array':
@@ -360,6 +392,7 @@ class SimplifiedPredatorPrey(gym.Env):
 AGENT_COLOR = ImageColor.getcolor('black', mode='RGB')
 AGENT_NEIGHBORHOOD_COLOR = (240, 240, 10)
 PREY_COLOR = 'red'
+FOOD_COLOR = 'green'
 
 CELL_SIZE = 35
 
@@ -377,5 +410,6 @@ PRE_IDS = {
     'agent': 'A',
     'prey': 'P',
     'wall': 'W',
-    'empty': '0'
+    'empty': '0',
+    'food': 'F'
 }

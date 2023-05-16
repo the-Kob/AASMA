@@ -23,7 +23,8 @@ if __name__ == '__main__':
     environment = SimplifiedPredatorPrey(
         grid_shape=(40, 40),
         n_agents=1, n_preys=1,
-        max_steps=100, required_captors=1
+        max_steps=100, required_captors=1,
+        n_foodpiles=10
     )
     environment = SingleAgentWrapper(environment, agent_id=0)
 
