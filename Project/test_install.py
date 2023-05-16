@@ -21,7 +21,7 @@ if __name__ == '__main__':
 
     # 1 - Setup the environment
     environment = SimplifiedPredatorPrey(
-        grid_shape=(7, 5),
+        grid_shape=(40, 40),
         n_agents=1, n_preys=1,
         max_steps=100, required_captors=1
     )

@@ -29,7 +29,8 @@ class SimplifiedPredatorPrey(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array']}
 
     def __init__(self, grid_shape=(5, 5), n_agents=2, n_preys=1, prey_move_probs=(0.175, 0.175, 0.175, 0.175, 0.3),
-                 full_observable=False, penalty=-0.5, step_cost=-0.01, prey_capture_reward=5, max_steps=100, required_captors=2):
+                 full_observable=False, penalty=-0.5, step_cost=-0.01, prey_capture_reward=5, max_steps=100, required_captors=2, n_food_sources=1):
+        
         self._grid_shape = grid_shape
         self.n_agents = n_agents
         self.n_preys = n_preys
@@ -40,6 +41,8 @@ class SimplifiedPredatorPrey(gym.Env):
         self._prey_capture_reward = prey_capture_reward
         self._agent_view_mask = (5, 5)
         self._required_captors = required_captors
+
+        self.n_food_sources = n_food_sources
 
         self.action_space = MultiAgentActionSpace([spaces.Discrete(5) for _ in range(self.n_agents)])
         self.agent_pos = {_: None for _ in range(self.n_agents)}
@@ -153,7 +156,7 @@ class SimplifiedPredatorPrey(gym.Env):
         return [agent_action_space.sample() for agent_action_space in self.action_space]
 
     def __draw_base_img(self):
-        self._base_img = draw_grid(self._grid_shape[0], self._grid_shape[1], cell_size=CELL_SIZE, fill='white')
+        self._base_img = draw_grid(self._grid_shape[0], self._grid_shape[1], cell_size=CELL_SIZE, fill='peru')
 
     def __create_grid(self):
         _grid = [[PRE_IDS['empty'] for _ in range(self._grid_shape[1])] for row in range(self._grid_shape[0])]
@@ -354,8 +357,8 @@ class SimplifiedPredatorPrey(gym.Env):
             self.viewer = None
 
 
-AGENT_COLOR = ImageColor.getcolor('blue', mode='RGB')
-AGENT_NEIGHBORHOOD_COLOR = (186, 238, 247)
+AGENT_COLOR = ImageColor.getcolor('black', mode='RGB')
+AGENT_NEIGHBORHOOD_COLOR = (240, 240, 10)
 PREY_COLOR = 'red'
 
 CELL_SIZE = 35

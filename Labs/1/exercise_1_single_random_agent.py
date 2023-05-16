@@ -23,7 +23,7 @@ def run_single_agent(environment: Env, agent: Agent, n_episodes: int) -> np.ndar
             agent.see(observation)
             action = agent.action()
             next_observation, reward, terminal, info = environment.step(action)
-            # environment.render()
+            environment.render()
             observation = next_observation
         
         environment.close()
