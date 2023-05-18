@@ -29,10 +29,11 @@ class SimplifiedPredatorPrey(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array']}
 
     def __init__(self, grid_shape=(5, 5), n_agents=2, n_preys=1, prey_move_probs=(0.175, 0.175, 0.175, 0.175, 0.3),
-                 full_observable=False, penalty=-0.5, step_cost=-0.01, prey_capture_reward=5, max_steps=100, required_captors=2, n_foodpiles=3, n_colonies=1):
+                 full_observable=False, penalty=-0.5, step_cost=-0.01, prey_capture_reward=5, max_steps=100, required_captors=2, n_foodpiles=3, foodpile_capture_reward=5, initial_foodpile_capacity=3 ,n_colonies=1):
         
         self._grid_shape = grid_shape
         self.n_agents = n_agents
+        self.n_preys = n_preys
         self._max_steps = max_steps
         self._step_count = None
         self._penalty = penalty
@@ -44,6 +45,9 @@ class SimplifiedPredatorPrey(gym.Env):
         self.n_foodpiles = n_foodpiles
         self.foodpile_depleted = None
         self.foodpile_pos = {_: None for _ in range(self.n_foodpiles)}
+        self.initial_foodpile_capacity = initial_foodpile_capacity
+        self.foodpile_capacity = {_: self.initial_foodpile_capacity for _ in range(self.n_foodpiles)}
+        self.foodpile_capture_reward = foodpile_capture_reward
 
         self.n_colonies = n_colonies
         self.colonies_pos = {_: None for _ in range(self.n_foodpiles)}
@@ -129,6 +133,8 @@ class SimplifiedPredatorPrey(gym.Env):
         self._step_count = 0
         self._agent_dones = [False for _ in range(self.n_agents)]
         self._prey_alive = [True for _ in range(self.n_preys)]
+        
+        self.foodpile_capacity = {_: self.initial_foodpile_capacity for _ in range(self.n_foodpiles)} # added this 
         self.foodpile_depleted = [False for _ in range(self.n_foodpiles)] # added this
 
         self.get_agent_obs()
@@ -161,7 +167,26 @@ class SimplifiedPredatorPrey(gym.Env):
 
                 self.__update_prey_pos(prey_i, prey_move)
 
-        # CONTINUE HERE WITH BEHAVIOUR SIMILAR TO PREYS -> MAKE FOOD SOURCES GIVE REWARDS TO ANTS
+        # Capture foodpiles requirements
+        for foodpile_i in range(self.n_foodpiles):
+            if (self.foodpile_depleted[foodpile_i] == False):
+                predator_neighbour_count, n_i = self._neighbour_agents(self.foodpile_pos[foodpile_i])
+
+                if predator_neighbour_count >= self._required_captors:
+
+                    _reward = self._penalty if predator_neighbour_count < self._required_captors else self.foodpile_capture_reward
+
+                    # Reduce foodpile capacity
+                    self.foodpile_capacity[foodpile_i] -= 1
+                    print("Foodpile " + str(foodpile_i) + " now has " + str(self.foodpile_capacity[foodpile_i]) + "food \n")
+                    
+
+                    if(self.foodpile_capacity[foodpile_i] == 0):
+                        self.foodpile_depleted[foodpile_i] = True
+                        print("Foodpile " + str(foodpile_i) + " was entirely consumed \n")
+
+                    for agent_i in range(self.n_agents):
+                        rewards[agent_i] += _reward
 
 
         # If every foodpile has been depleted, we should also stop
@@ -222,7 +247,7 @@ class SimplifiedPredatorPrey(gym.Env):
                 if self._is_cell_vacant(pos) and (self._neighbour_agents(pos)[0] == 0):
                     self.foodpile_pos[foodpile_i] = pos
                     break
-            self._full_obs[self.foodpile_pos[foodpile_i][0]][self.foodpile_pos[foodpile_i][1]] = PRE_IDS['food'] + str(foodpile_i + 1)
+            self._full_obs[self.foodpile_pos[foodpile_i][0]][self.foodpile_pos[foodpile_i][1]] = PRE_IDS['foodpile'] + str(foodpile_i + 1)
 
         # Randomly choose positions for colonies
         for colony_i in range(self.n_colonies):
@@ -250,7 +275,16 @@ class SimplifiedPredatorPrey(gym.Env):
                     if PRE_IDS['prey'] in self._full_obs[row][col]:
                         _prey_pos[row - (pos[0] - 2), col - (pos[1] - 2)] = 1  # get relative position for the prey loc.
 
+            # check if foodpile is in the view area
+            _foodpile_pos = np.zeros(self._agent_view_mask)  # prey location in neighbour
+            for row in range(max(0, pos[0] - 2), min(pos[0] + 2 + 1, self._grid_shape[0])):
+                for col in range(max(0, pos[1] - 2), min(pos[1] + 2 + 1, self._grid_shape[1])):
+                    if PRE_IDS['foodpile'] in self._full_obs[row][col]:
+                        _foodpile_pos[row - (pos[0] - 2), col - (pos[1] - 2)] = 1  # get relative position for the foodpile loc.
+        
+
             _agent_i_obs += _prey_pos.flatten().tolist()  # adding prey pos in observable area
+            _agent_i_obs += _foodpile_pos.flatten().tolist()  # adding prey pos in observable area
             _agent_i_obs += [self._step_count / self._max_steps]  # adding time
             _obs.append(_agent_i_obs)
 
@@ -344,7 +378,7 @@ class SimplifiedPredatorPrey(gym.Env):
         if self.is_valid([pos[0] + 1, pos[1]]) and PRE_IDS['agent'] in self._full_obs[pos[0] + 1][pos[1]]:
             _count += 1
             neighbours_xy.append([pos[0] + 1, pos[1]])
-        if self.is_valid([pos[0] - 1, pos[1]]) and (PRE_IDS['agent'] in self._full_obs[pos[0] - 1][pos[1]] or PRE_IDS['food'] in self._full_obs[pos[0] - 1][pos[1]]):
+        if self.is_valid([pos[0] - 1, pos[1]]) and (PRE_IDS['agent'] in self._full_obs[pos[0] - 1][pos[1]]):
             _count += 1
             neighbours_xy.append([pos[0] - 1, pos[1]])
         if self.is_valid([pos[0], pos[1] + 1]) and PRE_IDS['agent'] in self._full_obs[pos[0]][pos[1] + 1]:
@@ -393,7 +427,7 @@ class SimplifiedPredatorPrey(gym.Env):
         for foodpile_i in range(self.n_foodpiles):
             if (self.foodpile_depleted[foodpile_i] == False):
                 fill_cell(img, self.foodpile_pos[foodpile_i], cell_size=CELL_SIZE, fill=FOOD_COLOR, margin=0.1)
-                write_cell_text(img, text=str(foodpile_i + 1), pos=self.foodpile_pos[foodpile_i], cell_size=CELL_SIZE,
+                write_cell_text(img, text=str(self.foodpile_capacity[foodpile_i]), pos=self.foodpile_pos[foodpile_i], cell_size=CELL_SIZE,
                                 fill='white', margin=0.4)
         
         # Draw colonies  
@@ -445,6 +479,6 @@ PRE_IDS = {
     'prey': 'P',
     'wall': 'W',
     'empty': '0',
-    'food': 'F',
+    'foodpile': 'F',
     'colony': 'C'
 }
