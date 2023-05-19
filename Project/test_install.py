@@ -44,7 +44,7 @@ if __name__ == '__main__':
 
         terminal = False
         while not terminal:
-            
+
             n_steps += 1
             action = np.random.randint(n_actions)
             next_observation, reward, terminal, info = environment.step(action)
