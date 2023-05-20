@@ -30,7 +30,7 @@ class SimplifiedPredatorPrey(gym.Env):
 
     def __init__(self, grid_shape=(5, 5), n_agents=2, n_preys=1, prey_move_probs=(0.175, 0.175, 0.175, 0.175, 0.3),
                  full_observable=False, penalty=-0.5, step_cost=-0.01, prey_capture_reward=5, max_steps=100, required_captors=2,
-                 n_foodpiles=3, foodpile_capture_reward=5, initial_foodpile_capacity=3, n_colonies=1, initial_pheromone_intensity=0.5):
+                 n_foodpiles=3, foodpile_capture_reward=5, initial_foodpile_capacity=3, n_colonies=1, initial_pheromone_intensity=5, pheromone_evaporation_rate=1):
         
         self._grid_shape = grid_shape
         self.n_agents = n_agents
@@ -56,9 +56,10 @@ class SimplifiedPredatorPrey(gym.Env):
         self.colonies_pos = {_: None for _ in range(self.n_foodpiles)}
 
         # Pheromones
-        self.pheromones_in_grid = [[0 for _ in range(self._grid_shape[1])] for row in range(self._grid_shape[0])]
-        self.pheromones_pos = {_: None for _ in range(20)}
+        self.pheromones_in_grid = [[0 for _ in range(self._grid_shape[0])] for row in range(self._grid_shape[1])] # keep pheromone level for each grid cell
         self.initial_pheromone_intensity = initial_pheromone_intensity
+        self.pheromone_evaporation_rate = pheromone_evaporation_rate
+        self.n_pheromone = 0
 
         self.action_space = MultiAgentActionSpace([spaces.Discrete(5) for _ in range(self.n_agents)])
         self.agent_pos = {_: None for _ in range(self.n_agents)}
@@ -106,10 +107,10 @@ class SimplifiedPredatorPrey(gym.Env):
                 col = col[0]
                 prey_pos.append((col, row))
 
-        # Create tags for grids with foodpiles
+        # Create tags for grids with foodpiles (possibly can be eliminated?)
         foodpile_pos = []
         for foodpile_id in range(self.n_foodpiles):
-            if (self.foodpile_depleted[foodpile_id] == False):
+            if (not self.foodpile_depleted[foodpile_id]):
                 tag = f"F{foodpile_id + 1}"
                 row, col = np.where(current_grid == tag)
                 row = row[0]
@@ -125,8 +126,9 @@ class SimplifiedPredatorPrey(gym.Env):
             col = col[0]
             colonies_pos.append((col, row))
             
-
-        features = np.array(agent_pos + prey_pos).reshape(-1)
+        # At each time step, the agent knows its own position, the preys position (to deprecate) and the colony's position
+        # Observation: [1 7 5 0 8 5] <-> [col_agent row_agent col_prey row_prey col_colony row_colony]
+        features = np.array(agent_pos + prey_pos + colonies_pos).reshape(-1)
 
         return features
 
@@ -137,6 +139,8 @@ class SimplifiedPredatorPrey(gym.Env):
         self.foodpile_pos = {} # added this
         self.colonies_pos = {} # added this
 
+        self.pheromones_pos = {} # added this
+
         self.__init_full_obs()
         self._step_count = 0
         self._agent_dones = [False for _ in range(self.n_agents)]
@@ -145,6 +149,9 @@ class SimplifiedPredatorPrey(gym.Env):
         # Reset foodpiles
         self.foodpile_capacity = {_: self.initial_foodpile_capacity for _ in range(self.n_foodpiles)} # added this 
         self.foodpile_depleted = [False for _ in range(self.n_foodpiles)] # added this
+
+        # Reset pheromones in grid
+        self.pheromones_in_grid = [[0 for _ in range(self._grid_shape[0])] for row in range(self._grid_shape[1])]
 
         self.get_agent_obs()
         return [self.simplified_features() for _ in range(self.n_agents)]
@@ -156,18 +163,17 @@ class SimplifiedPredatorPrey(gym.Env):
         # Decrease intensiy of pheromones
         for row in range(self._grid_shape[0]):
             for col in range(self._grid_shape[1]):
-                pheromone_i = self.pheromones_in_grid[row][col]
 
-                if (pheromone_i > 0):
-                   self.pheromones_in_grid[row][col] -= 0.05
+                if (self.pheromones_in_grid[col][row] > 0):
+                   self.pheromones_in_grid[col][row] -= self.pheromone_evaporation_rate
 
-                   if(self.pheromones_in_grid[row][col] <= 0):
-                        self.pheromones_in_grid[row][col] = 0
-                        self._full_obs[row][col] = PRE_IDS['empty']
+                   if(self.pheromones_in_grid[col][row] < self.pheromone_evaporation_rate):
+                        self.pheromones_in_grid[col][row] = 0
+                        self._full_obs[col][row] = PRE_IDS['empty'] # this needs to be switched
 
         for agent_i, action in enumerate(agents_action):
             if not (self._agent_dones[agent_i]):
-                self.__update_agent_pos(agent_i, action)
+                self.__update_agent_pos(agent_i, action) # this was also update for the pheromones
 
         for prey_i in range(self.n_preys):
             if self._prey_alive[prey_i]:
@@ -190,7 +196,7 @@ class SimplifiedPredatorPrey(gym.Env):
 
         # Capture foodpiles requirements
         for foodpile_i in range(self.n_foodpiles):
-            if (self.foodpile_depleted[foodpile_i] == False):
+            if (not self.foodpile_depleted[foodpile_i]):
                 predator_neighbour_count, n_i = self._neighbour_agents(self.foodpile_pos[foodpile_i])
 
                 if predator_neighbour_count >= self._required_captors:
@@ -199,12 +205,13 @@ class SimplifiedPredatorPrey(gym.Env):
 
                     # Reduce foodpile capacity
                     self.foodpile_capacity[foodpile_i] -= 1
-                    print("Foodpile " + str(foodpile_i) + " now has " + str(self.foodpile_capacity[foodpile_i]) + "food \n")
-                    
+                    print("\nFoodpile " + str(foodpile_i) + " now has " + str(self.foodpile_capacity[foodpile_i]) + " food \n")
 
-                    if(self.foodpile_capacity[foodpile_i] == 0):
+                    if(self.foodpile_capacity[foodpile_i] < 1):
                         self.foodpile_depleted[foodpile_i] = True
-                        print("Foodpile " + str(foodpile_i) + " was entirely consumed \n")
+                        row, col = self.foodpile_pos[foodpile_i]
+                        self._full_obs[self.foodpile_pos[foodpile_i][0]][self.foodpile_pos[foodpile_i][1]] = PRE_IDS['empty']
+                        print("\nFoodpile " + str(foodpile_i) + " was entirely consumed \n")
 
                     for agent_i in range(self.n_agents):
                         rewards[agent_i] += _reward
@@ -232,7 +239,7 @@ class SimplifiedPredatorPrey(gym.Env):
         return [agent_action_space.sample() for agent_action_space in self.action_space]
 
     def __draw_base_img(self):
-        self._base_img = draw_grid(self._grid_shape[0], self._grid_shape[1], cell_size=CELL_SIZE, fill='peru')
+        self._base_img = draw_grid(self._grid_shape[0], self._grid_shape[1], cell_size=CELL_SIZE, fill=GROUND_COLOR)
 
     def __create_grid(self):
         _grid = [[PRE_IDS['empty'] for _ in range(self._grid_shape[1])] for row in range(self._grid_shape[0])]
@@ -245,7 +252,7 @@ class SimplifiedPredatorPrey(gym.Env):
             while True:
                 pos = [self.np_random.randint(0, self._grid_shape[0] - 1),
                        self.np_random.randint(0, self._grid_shape[1] - 1)]
-                if self._is_cell_vacant(pos):
+                if self._is_cell_walkable(pos):
                     self.agent_pos[agent_i] = pos
                     break
             self.__update_agent_view(agent_i)
@@ -254,7 +261,7 @@ class SimplifiedPredatorPrey(gym.Env):
             while True:
                 pos = [self.np_random.randint(0, self._grid_shape[0] - 1),
                        self.np_random.randint(0, self._grid_shape[1] - 1)]
-                if self._is_cell_vacant(pos) and (self._neighbour_agents(pos)[0] == 0):
+                if self._is_cell_walkable(pos) and (self._neighbour_agents(pos)[0] == 0):
                     self.prey_pos[prey_i] = pos
                     break
             self.__update_prey_view(prey_i)
@@ -296,15 +303,23 @@ class SimplifiedPredatorPrey(gym.Env):
                         _prey_pos[row - (pos[0] - 2), col - (pos[1] - 2)] = 1  # get relative position for the prey loc.
 
             # check if foodpile is in the view area
-            _foodpile_pos = np.zeros(self._agent_view_mask)  # prey location in neighbour
+            _foodpile_pos = np.zeros(self._agent_view_mask)  # foodpile location in neighbour
             for row in range(max(0, pos[0] - 2), min(pos[0] + 2 + 1, self._grid_shape[0])):
                 for col in range(max(0, pos[1] - 2), min(pos[1] + 2 + 1, self._grid_shape[1])):
                     if PRE_IDS['foodpile'] in self._full_obs[row][col]:
                         _foodpile_pos[row - (pos[0] - 2), col - (pos[1] - 2)] = 1  # get relative position for the foodpile loc.
+
+            # check if pheromones is in the view area
+            _pheromone_pos = np.zeros(self._agent_view_mask)  # pheromone location in neighbour
+            for row in range(max(0, pos[0] - 2), min(pos[0] + 2 + 1, self._grid_shape[0])):
+                for col in range(max(0, pos[1] - 2), min(pos[1] + 2 + 1, self._grid_shape[1])):
+                    if PRE_IDS['pheromone'] in self._full_obs[row][col]:
+                        _pheromone_pos[row - (pos[0] - 2), col - (pos[1] - 2)] = 1  # get relative position for the foodpile loc.
         
 
             _agent_i_obs += _prey_pos.flatten().tolist()  # adding prey pos in observable area
-            _agent_i_obs += _foodpile_pos.flatten().tolist()  # adding prey pos in observable area
+            _agent_i_obs += _foodpile_pos.flatten().tolist()  # adding foodpile pos in observable area
+            _agent_i_obs += _pheromone_pos.flatten().tolist()  # adding pheromone pos in observable area
             _agent_i_obs += [self._step_count / self._max_steps]  # adding time
             _obs.append(_agent_i_obs)
 
@@ -320,8 +335,11 @@ class SimplifiedPredatorPrey(gym.Env):
     def is_valid(self, pos):
         return (0 <= pos[0] < self._grid_shape[0]) and (0 <= pos[1] < self._grid_shape[1])
 
-    def _is_cell_vacant(self, pos):
+    def _is_cell_walkable(self, pos):
         return self.is_valid(pos) and ((self._full_obs[pos[0]][pos[1]] == PRE_IDS['empty']) or (self._full_obs[pos[0]][pos[1]] == PRE_IDS['pheromone']))
+    
+    def _is_cell_vacant(self, pos):
+        return self.is_valid(pos) and (self._full_obs[pos[0]][pos[1]] == PRE_IDS['empty'])
 
     def __update_agent_pos(self, agent_i, move):
 
@@ -340,14 +358,14 @@ class SimplifiedPredatorPrey(gym.Env):
         else:
             raise Exception('Action Not found!')
 
-        if next_pos is not None and self._is_cell_vacant(next_pos):
+        if next_pos is not None and self._is_cell_walkable(next_pos):
             self.agent_pos[agent_i] = next_pos
 
             # Add pheromones to last location
             self._full_obs[curr_pos[0]][curr_pos[1]] = PRE_IDS['pheromone'] # now the last position is going to have the pheromone tag instead of empty
-            self.pheromones_in_grid[curr_pos[1]][curr_pos[0]] = self.initial_pheromone_intensity
+            self.pheromones_in_grid[curr_pos[0]][curr_pos[1]] = self.initial_pheromone_intensity # currently doesn't stack pheromones
 
-            self.__update_agent_view(agent_i)
+        self.__update_agent_view(agent_i) # this should always happen to prevent pheromone + NOOP => empy cell with agent in there ;(
 
     def __update_prey_pos(self, prey_i, move):
         curr_pos = copy.copy(self.prey_pos[prey_i])
@@ -366,7 +384,7 @@ class SimplifiedPredatorPrey(gym.Env):
             else:
                 raise Exception('Action Not found!')
 
-            if next_pos is not None and self._is_cell_vacant(next_pos):
+            if next_pos is not None and self._is_cell_walkable(next_pos):
                 self.prey_pos[prey_i] = next_pos
                 self._full_obs[curr_pos[0]][curr_pos[1]] = PRE_IDS['empty']
                 self.__update_prey_view(prey_i)
@@ -422,44 +440,56 @@ class SimplifiedPredatorPrey(gym.Env):
         # Draw pheromones 
         for row in range(self._grid_shape[0]):
             for col in range(self._grid_shape[1]):
-                pheromone_i = self.pheromones_in_grid[row][col]
 
-                if(pheromone_i > 0):
+                if(self.pheromones_in_grid[col][row] >= self.pheromone_evaporation_rate):
+                    pheromone_i = self.pheromones_in_grid[col][row]
                     pheromone_pos = [col, row]
-                    fill_cell(img, pheromone_pos, cell_size=CELL_SIZE, fill=PHEROMONE_COLOR, margin=0.1)
+                    fill_cell(img, pheromone_pos, cell_size=CELL_SIZE, fill=color_lerp(GROUND_COLOR, PHEROMONE_COLOR, pheromone_i/self.initial_pheromone_intensity), margin=0.1)
                     write_cell_text(img, text=str(pheromone_i), pos=pheromone_pos, cell_size=CELL_SIZE,
                             fill='white', margin=0.4)  
 
 
-
+        # Agent neighborhood render
         for agent_i in range(self.n_agents):
             for neighbour in self.__get_neighbour_coordinates(self.agent_pos[agent_i]):
                 fill_cell(img, neighbour, cell_size=CELL_SIZE, fill=AGENT_NEIGHBORHOOD_COLOR, margin=0.1)
             fill_cell(img, self.agent_pos[agent_i], cell_size=CELL_SIZE, fill=AGENT_NEIGHBORHOOD_COLOR, margin=0.1)
 
+        # Agent render
         for agent_i in range(self.n_agents):
             draw_circle(img, self.agent_pos[agent_i], cell_size=CELL_SIZE, fill=AGENT_COLOR)
             write_cell_text(img, text=str(agent_i + 1), pos=self.agent_pos[agent_i], cell_size=CELL_SIZE,
                             fill='white', margin=0.4)
 
+        # Prey render
         for prey_i in range(self.n_preys):
             if self._prey_alive[prey_i]:
                 draw_circle(img, self.prey_pos[prey_i], cell_size=CELL_SIZE, fill=PREY_COLOR)
                 write_cell_text(img, text=str(prey_i + 1), pos=self.prey_pos[prey_i], cell_size=CELL_SIZE,
                                 fill='white', margin=0.4)
 
-        # Draw foodpiles  
+        # Foodpiles render  
         for foodpile_i in range(self.n_foodpiles):
             if (self.foodpile_depleted[foodpile_i] == False):
                 fill_cell(img, self.foodpile_pos[foodpile_i], cell_size=CELL_SIZE, fill=FOOD_COLOR, margin=0.1)
+                write_cell_text(img, text=str(foodpile_i + 1), pos=self.foodpile_pos[foodpile_i], cell_size=CELL_SIZE,
+                                fill='white', margin=0.4)
+
                 write_cell_text(img, text=str(self.foodpile_capacity[foodpile_i]), pos=self.foodpile_pos[foodpile_i], cell_size=CELL_SIZE,
                                 fill='white', margin=0.4)
         
-        # Draw colonies  
+        # Colonies render 
         for colony_i in range(self.n_colonies):
             fill_cell(img, self.colonies_pos[colony_i], cell_size=CELL_SIZE, fill=COLONY_COLOR, margin=0.1)
             write_cell_text(img, text=str(colony_i + 1), pos=self.colonies_pos[colony_i], cell_size=CELL_SIZE,
-                            fill='white', margin=0.4)
+                           fill='white', margin=0.4)
+
+
+        # UNCOMMENT TO VIEW TAGS
+        #for row in range(self._grid_shape[0]):
+            #for col in range(self._grid_shape[1]):
+                #write_cell_text(img, text=str(self._full_obs[col][row]), pos=[col, row], cell_size=CELL_SIZE,
+                #            fill='white', margin=0.4)
 
         img = np.asarray(img)
         if mode == 'rgb_array':
@@ -486,11 +516,12 @@ AGENT_NEIGHBORHOOD_COLOR = (240, 240, 10)
 PREY_COLOR = 'red'
 FOOD_COLOR = 'green'
 COLONY_COLOR = 'sienna'
-PHEROMONE_COLOR = 'cyan'
+PHEROMONE_COLOR = (10, 240, 240)
+
+GROUND_COLOR = (205, 133, 63)
+WALL_COLOR = 'black'
 
 CELL_SIZE = 35
-
-WALL_COLOR = 'black'
 
 ACTION_MEANING = {
     0: "DOWN",
@@ -507,5 +538,11 @@ PRE_IDS = {
     'empty': '0',
     'foodpile': 'F',
     'colony': 'C',
-    'pheromone': 'O'
+    'pheromone': 'I'
 }
+
+def color_lerp(color_1, color_2, steps):
+    color_1 = np.asarray(color_1)
+    color_2 = np.asarray(color_2)
+    final_color = color_1 * (1 - steps) + color_2 * steps
+    return (int(final_color[0]), int(final_color[1]), int(final_color[2]))
