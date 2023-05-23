@@ -128,7 +128,7 @@ class SimplifiedPredatorPrey(gym.Env):
             
         # At each time step, the agent knows its own position, the preys position (to deprecate) and the colony's position
         # Observation: [1 7 5 0 8 5] <-> [col_agent row_agent col_prey row_prey col_colony row_colony]
-        features = np.array(agent_pos + prey_pos + colonies_pos).reshape(-1)
+        features = np.array(agent_pos + colonies_pos).reshape(-1)
 
         return features
 
@@ -154,7 +154,11 @@ class SimplifiedPredatorPrey(gym.Env):
         self.pheromones_in_grid = [[0 for _ in range(self._grid_shape[0])] for row in range(self._grid_shape[1])]
 
         self.get_agent_obs()
-        return [self.simplified_features() for _ in range(self.n_agents)]
+
+        o = np.array(self.get_agent_obs())[0]
+        lol = np.concatenate((self.simplified_features(), o))
+
+        return [lol for _ in range(self.n_agents)]
 
     def step(self, agents_action):
         self._step_count += 1
@@ -224,9 +228,10 @@ class SimplifiedPredatorPrey(gym.Env):
         for i in range(self.n_agents):
             self._total_episode_reward[i] += rewards[i]
 
-        self.get_agent_obs()
+        o = np.array(self.get_agent_obs())[0]
+        lol = np.concatenate((self.simplified_features(), o))
 
-        return [self.simplified_features() for _ in range(self.n_agents)], rewards, self._agent_dones, {'prey_alive': self._prey_alive}
+        return [ lol for _ in range(self.n_agents)], rewards, self._agent_dones, {'prey_alive': self._prey_alive}
 
     def get_action_meanings(self, agent_i=None):
         if agent_i is not None:
@@ -291,9 +296,10 @@ class SimplifiedPredatorPrey(gym.Env):
 
     def get_agent_obs(self):
         _obs = []
+
         for agent_i in range(self.n_agents):
             pos = self.agent_pos[agent_i]
-            _agent_i_obs = [pos[0] / (self._grid_shape[0] - 1), pos[1] / (self._grid_shape[1] - 1)]  # coordinates
+            #_agent_i_obs = [pos[0] / (self._grid_shape[0] - 1), pos[1] / (self._grid_shape[1] - 1)]  # coordinates
 
             # check if prey is in the view area
             _prey_pos = np.zeros(self._agent_view_mask)  # prey location in neighbour
@@ -308,19 +314,20 @@ class SimplifiedPredatorPrey(gym.Env):
                 for col in range(max(0, pos[1] - 2), min(pos[1] + 2 + 1, self._grid_shape[1])):
                     if PRE_IDS['foodpile'] in self._full_obs[row][col]:
                         _foodpile_pos[row - (pos[0] - 2), col - (pos[1] - 2)] = 1  # get relative position for the foodpile loc.
-
+                    
             # check if pheromones is in the view area
             _pheromone_pos = np.zeros(self._agent_view_mask)  # pheromone location in neighbour
             for row in range(max(0, pos[0] - 2), min(pos[0] + 2 + 1, self._grid_shape[0])):
                 for col in range(max(0, pos[1] - 2), min(pos[1] + 2 + 1, self._grid_shape[1])):
                     if PRE_IDS['pheromone'] in self._full_obs[row][col]:
                         _pheromone_pos[row - (pos[0] - 2), col - (pos[1] - 2)] = 1  # get relative position for the foodpile loc.
-        
 
-            _agent_i_obs += _prey_pos.flatten().tolist()  # adding prey pos in observable area
-            _agent_i_obs += _foodpile_pos.flatten().tolist()  # adding foodpile pos in observable area
+        
+            #_agent_i_obs += _prey_pos.flatten().tolist()  # adding prey pos in observable area
+            _agent_i_obs = _foodpile_pos.flatten().tolist()  # adding foodpile pos in observable area
             _agent_i_obs += _pheromone_pos.flatten().tolist()  # adding pheromone pos in observable area
-            _agent_i_obs += [self._step_count / self._max_steps]  # adding time
+            #_agent_i_obs += [self._step_count / self._max_steps]  # adding time
+
             _obs.append(_agent_i_obs)
 
         if self.full_observable:
@@ -472,8 +479,8 @@ class SimplifiedPredatorPrey(gym.Env):
         for foodpile_i in range(self.n_foodpiles):
             if (self.foodpile_depleted[foodpile_i] == False):
                 fill_cell(img, self.foodpile_pos[foodpile_i], cell_size=CELL_SIZE, fill=FOOD_COLOR, margin=0.1)
-                write_cell_text(img, text=str(foodpile_i + 1), pos=self.foodpile_pos[foodpile_i], cell_size=CELL_SIZE,
-                                fill='white', margin=0.4)
+                #write_cell_text(img, text=str(foodpile_i + 1), pos=self.foodpile_pos[foodpile_i], cell_size=CELL_SIZE,
+                #                fill='white', margin=0.4)
 
                 write_cell_text(img, text=str(self.foodpile_capacity[foodpile_i]), pos=self.foodpile_pos[foodpile_i], cell_size=CELL_SIZE,
                                 fill='white', margin=0.4)
