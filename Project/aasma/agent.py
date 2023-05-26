@@ -37,7 +37,7 @@ class Agent(ABC):
 
     def __init__(self, name: str):
         self.name = name
-        self.observation = None
+        self.observation :np.ndarray = np.ndarray([])
 
     def see(self, observation: np.ndarray):
         self.observation = observation

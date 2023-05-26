@@ -28,13 +28,20 @@ class GreedyAgent(Agent):
         self.n_agents = n_agents
         self.n_actions = N_ACTIONS
 
+
     def action(self) -> int:
+
+        
+        # [1 7 8 5]
+        num_agents = self.n_agents * 2
+        print(num_agents)
+        print(self.observation)
         agents_positions = self.observation[:self.n_agents * 2]
         true_agent_id = self.agent_id * 2
         agent_position = agents_positions[true_agent_id:true_agent_id + 2]
-
+    
         preys_positions = self.observation[self.n_agents * 2:]
-        closest_prey_position = self.closest_prey(agent_position, preys_positions)
+        closest_prey_position = self.closest_prey(agent_position, preys_positions)       
 
         return self.direction_to_go(agent_position, closest_prey_position)
 
@@ -47,6 +54,7 @@ class GreedyAgent(Agent):
         Given the position of the agent and the position of a prey,
         returns the action to take in order to close the distance
         """
+        
         distances = np.array(prey_position) - np.array(agent_position)
         abs_distances = np.absolute(distances)
         if abs_distances[0] > abs_distances[1]:
@@ -56,7 +64,9 @@ class GreedyAgent(Agent):
         else:
             roll = random.uniform(0, 1)
             return self._close_horizontally(distances) if roll > 0.5 else self._close_vertically(distances)
+        
 
+        
     def closest_prey(self, agent_position, prey_positions):
         """
         Given the positions of an agent and a sequence of positions of all prey,

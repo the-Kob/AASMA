@@ -30,7 +30,7 @@ class SimplifiedPredatorPrey(gym.Env):
 
     def __init__(self, grid_shape=(5, 5), n_agents=2, n_preys=1, prey_move_probs=(0.175, 0.175, 0.175, 0.175, 0.3),
                  full_observable=False, penalty=-0.5, step_cost=-0.01, prey_capture_reward=5, max_steps=100, required_captors=2,
-                 n_foodpiles=3, foodpile_capture_reward=5, initial_foodpile_capacity=3, n_colonies=1, initial_pheromone_intensity=5, pheromone_evaporation_rate=1):
+                 n_foodpiles=3, foodpile_capture_reward=5, initial_foodpile_capacity=3, n_colonies=1, initial_pheromone_intensity=5, pheromone_evaporation_rate=1, initial_colonies_storage=0, colonies_storage =0):
         
         self._grid_shape = grid_shape
         self.n_agents = n_agents
@@ -54,6 +54,9 @@ class SimplifiedPredatorPrey(gym.Env):
         # Colonies
         self.n_colonies = n_colonies
         self.colonies_pos = {_: None for _ in range(self.n_foodpiles)}
+        self.initial_colonies_storage = initial_colonies_storage  # added this
+        self.colonies_storage = {_: self.initial_colonies_storage for _ in range(self.n_colonies)}  # added this
+
 
         # Pheromones
         self.pheromones_in_grid = [[0 for _ in range(self._grid_shape[0])] for row in range(self._grid_shape[1])] # keep pheromone level for each grid cell
