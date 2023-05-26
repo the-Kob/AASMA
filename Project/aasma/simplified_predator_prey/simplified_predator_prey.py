@@ -20,10 +20,6 @@ class SimplifiedPredatorPrey(gym.Env):
     """A simplified version of ma_gym.envs.predator_prey.predator_prey.PredatorPrey
     Observations do not take into account the nearest cells and an extra parameter (required_captors) was added
 
-    See Also
-    --------
-    ma_gym.envs.predator_prey
-
     """
 
     metadata = {'render.modes': ['human', 'rgb_array']}
@@ -135,6 +131,7 @@ class SimplifiedPredatorPrey(gym.Env):
         # Reset foodpiles
         self.foodpile_capacity = {_: self.initial_foodpile_capacity for _ in range(self.n_foodpiles)} # added this 
         self.foodpile_depleted = [False for _ in range(self.n_foodpiles)] # added this
+        self.foodpiles_done = False
 
         # Reset pheromones in grid
         self.pheromones_in_grid = [[0 for _ in range(self._grid_shape[0])] for row in range(self._grid_shape[1])]

@@ -31,23 +31,70 @@ class GreedyAgent(Agent):
 
     def action(self) -> int:
 
-        
-        # [1 7 8 5]
-        num_agents = self.n_agents * 2
-        print(num_agents)
-        print(self.observation)
-        agents_positions = self.observation[:self.n_agents * 2]
-        true_agent_id = self.agent_id * 2
-        agent_position = agents_positions[true_agent_id:true_agent_id + 2]
-    
-        preys_positions = self.observation[self.n_agents * 2:]
-        closest_prey_position = self.closest_prey(agent_position, preys_positions)       
+        # [agents position _ colony position _ 25 * foodpiles _ 25 * pheromones _ colonys storage]
 
-        return self.direction_to_go(agent_position, closest_prey_position)
+        # Make this dependent on agent view mask
+        agent_position = self.observation[:2]
+        colony_position = self.observation[2:4]
+
+        foodpiles_in_view = self.observation[4:29]
+        pheromones_in_view = self.observation[29:54]
+
+        colony_storage = self.observation[-1]
+
+        # See if there are any noteworthy things in view
+        foodpiles_indices = np.where(foodpiles_in_view != 0)
+        pheromones_indices = np.where(pheromones_in_view != 0)
+
+        # Determine what the agent should do...
+        # WHAT TO DO???
+        # EXPLORE? PHEROMONES? FOOD? COLONY?
+
+        # Agent wants to explore first foodpile it sees
+        foodpile_global_pos = self.find_global_pos(agent_position, foodpiles_indices[0])
+        action = self.direction_to_go(agent_position, foodpile_global_pos) # return this
+    
+        # If were going after a given target,
+        #closest_prey_position = self.closest_prey(agent_position, preys_positions)       
+
+        #return self.direction_to_go(agent_position, closest_prey_position)
+
+        return action
 
     # ################# #
     # Auxiliary Methods #
     # ################# #
+
+    def find_global_pos(self, agent_pos, object_relative_position_index):
+        
+        # Test: 23, agent is 4,6
+
+        # Calculate relative row and global row
+        if(object_relative_position_index <= 4):
+            relative_row = 0 
+            global_row = agent_pos[1] + 2
+        elif(object_relative_position_index > 4 & object_relative_position_index <= 9):
+            relative_row = 1 
+            global_row = agent_pos[1] + 1
+        elif(object_relative_position_index > 9 & object_relative_position_index <= 14):
+             relative_row = 2
+             global_row = agent_pos[1] + 0
+        elif(object_relative_position_index > 14 & object_relative_position_index <= 19):
+            relative_row = 3
+            global_row = agent_pos[1] - 1
+        elif(object_relative_position_index > 19 & object_relative_position_index <= 24):
+            relative_row = 4
+            global_row = agent_pos[1] - 2
+        # row = 8 -> Correct, relative row is 4
+
+        # Calculate relative column and global column
+        relative_column = object_relative_position_index - 5 * relative_row
+        global_column = agent_pos[0] + (relative_column - 2)  # column = 5
+
+        global_pos = np.array([global_column, global_row]) # 5, 8
+ 
+        return global_pos
+
 
     def direction_to_go(self, agent_position, prey_position):
         """
@@ -114,14 +161,14 @@ if __name__ == '__main__':
     # 1 - Setup environment
     environment = SimplifiedPredatorPrey(
         grid_shape=(7, 7),
-        n_agents=1, n_preys=1,
+        n_agents=1,
         max_steps=100, required_captors=1
     )
     environment = SingleAgentWrapper(environment, agent_id=0)
 
     # 2 - Setup agents
     agents = [
-        RandomAgent(environment.action_space.n),
+        #RandomAgent(environment.action_space.n),
         GreedyAgent(agent_id=0, n_agents=1)
     ]
 

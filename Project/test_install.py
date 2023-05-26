@@ -22,7 +22,7 @@ if __name__ == '__main__':
     # 1 - Setup the environment
     environment = SimplifiedPredatorPrey(
         grid_shape=(10, 10), # try 40x40
-        n_agents=1, n_preys=1,
+        n_agents=1, 
         max_steps=100, required_captors=1,
         n_foodpiles=5
     )

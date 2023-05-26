@@ -18,6 +18,7 @@ def run_single_agent(environment: Env, agent: Agent, n_episodes: int) -> np.ndar
         steps = 0
         terminal = False
         observation = environment.reset()
+        
         while not terminal:
             steps += 1
             agent.see(observation)
