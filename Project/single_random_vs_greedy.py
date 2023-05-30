@@ -47,11 +47,16 @@ class GreedyAgent(Agent):
         pheromones_indices = np.where(pheromones_in_view != 0)
 
         # Determine what the agent should do...
-        # WHAT TO DO???
-        # EXPLORE? PHEROMONES? FOOD? COLONY?
+        # WHAT TO DO??? EXPLORE? PHEROMONES? FOOD? COLONY? -> DELIBERTIVE AND REACTIVE
+
+        # WHAT IS THE GLOBAL POSITION OF THIS POINT OF INTEREST?
 
         # Agent wants to explore first foodpile it sees
         foodpile_global_pos = self.find_global_pos(agent_position, foodpiles_indices[0])
+
+        point_of_interest = foodpile_global_pos
+
+        # WHAT ACTION SHOULD THE AGENT MAKE IN ORDER TO GO TO THE POINT OF INTEREST?
         action = self.direction_to_go(agent_position, foodpile_global_pos) # return this
     
         # If were going after a given target,
