@@ -159,6 +159,17 @@ class GreedyAgent(Agent):
 
         return Exception
     
+    def go_to_colony( self, agent_position, colony_position):
+        return self.direction_to_go(agent_position, colony_position)
+    
+    
+    def go_to_closest_foodpile(self, agent_position, foodpiles_positions):
+        closest_foodpile_position = self.closest_point_of_interest(agent_position, foodpiles_positions)
+        return diretction_to_go(agent_position, closest_foodpile_position)
+    
+ 
+    
+    
     def check_for_intense_pheromones(self, agent_position, pheromones_in_view):
         pheromones_of_interest = np.where(pheromones_in_view > 5) # SUBSITUTE FOR initial_pheromone_intensity OF ENV
 
