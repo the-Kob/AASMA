@@ -129,7 +129,7 @@ class GreedyAgent(Agent):
             if distance < min:
                 min = distance
                 closest_food_position =  food_position
-        return closest_prey_position
+        return closest_food_position
 
     # ############### #
     # Private Methods #
