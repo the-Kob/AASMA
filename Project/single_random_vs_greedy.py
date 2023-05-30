@@ -96,13 +96,13 @@ class GreedyAgent(Agent):
         return global_pos
 
 
-    def direction_to_go(self, agent_position, prey_position):
+    def direction_to_go(self, agent_position, foodpile_global_pos):
         """
         Given the position of the agent and the position of a prey,
         returns the action to take in order to close the distance
         """
         
-        distances = np.array(prey_position) - np.array(agent_position)
+        distances = np.array(foodpile_global_pos) - np.array(agent_position)
         abs_distances = np.absolute(distances)
         if abs_distances[0] > abs_distances[1]:
             return self._close_horizontally(distances)
@@ -114,7 +114,7 @@ class GreedyAgent(Agent):
         
 
         
-    def closest_prey(self, agent_position, prey_positions):
+    def closest_prey(self, agent_position,foodpile_global_pos):
         """
         Given the positions of an agent and a sequence of positions of all prey,
         returns the positions of the closest prey.
@@ -122,13 +122,13 @@ class GreedyAgent(Agent):
         """
         min = math.inf
         closest_prey_position = None
-        n_preys = int(len(prey_positions) / 2)
+        n_preys = int(len(foodpile_global_pos) / 2)
         for p in range(n_preys):
-            prey_position = prey_positions[p * 2], prey_positions[(p * 2) + 1]
-            distance = cityblock(agent_position, prey_position)
+            food_position = foodpile_global_pos[p * 2], foodpile_global_pos[(p * 2) + 1]
+            distance = cityblock(agent_position,  food_position)
             if distance < min:
                 min = distance
-                closest_prey_position = prey_position
+                closest_food_position =  food_position
         return closest_prey_position
 
     # ############### #
