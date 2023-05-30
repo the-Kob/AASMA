@@ -14,6 +14,9 @@ from single_random_agent import run_single_agent, RandomAgent
 N_ACTIONS = 5
 DOWN, LEFT, UP, RIGHT, STAY = range(N_ACTIONS)
 
+N_POSSIBLE_DESIRES = 3
+EXPLORE, FIND_FOODPILE, GO_TO_COLONY = range(N_POSSIBLE_DESIRES)
+
 
 class GreedyAgent(Agent):
 
@@ -47,7 +50,7 @@ class GreedyAgent(Agent):
         pheromones_indices = np.where(pheromones_in_view != 0)
 
         # Determine what the agent should do...
-        # WHAT TO DO??? EXPLORE? PHEROMONES? FOOD? COLONY? -> DELIBERTIVE AND REACTIVE
+        # WHAT TO DO??? EXPLORE? PHEROMONES? FOOD? COLONY? -> DELIBERATIVE AND REACTIVE
 
         # WHAT IS THE GLOBAL POSITION OF THIS POINT OF INTEREST?
 
@@ -117,9 +120,8 @@ class GreedyAgent(Agent):
             roll = random.uniform(0, 1)
             return self._close_horizontally(distances) if roll > 0.5 else self._close_vertically(distances)
         
-
         
-    def closest_prey(self, agent_position,foodpile_global_pos):
+    def closest_point_of_interest(self, agent_position, points_of_interest):
         """
         Given the positions of an agent and a sequence of positions of all prey,
         returns the positions of the closest prey.
@@ -127,14 +129,51 @@ class GreedyAgent(Agent):
         """
         min = math.inf
         closest_prey_position = None
-        n_preys = int(len(foodpile_global_pos) / 2)
+        n_preys = int(len(points_of_interest) / 2)
         for p in range(n_preys):
-            food_position = foodpile_global_pos[p * 2], foodpile_global_pos[(p * 2) + 1]
+            food_position = points_of_interest[p * 2], points_of_interest[(p * 2) + 1]
             distance = cityblock(agent_position,  food_position)
             if distance < min:
                 min = distance
                 closest_food_position =  food_position
         return closest_food_position
+    
+    def deliberative(self):
+
+        # Setup beliefs in accordance with perceptions of the environment
+        beliefs = self.observation
+
+        agent_position = beliefs[:2]
+        colony_position = beliefs[2:4]
+
+        foodpiles_in_view = beliefs[4:29]
+        pheromones_in_view = beliefs[29:54]
+
+        colony_storage = beliefs[-1]
+
+        # Setup desires
+        desires = []
+
+        if(self.check_for_intense_pheromones(agent_position, pheromones_in_view)):
+            desires.append(FIND_FOODPILE)
+
+        return Exception
+    
+    def check_for_intense_pheromones(self, agent_position, pheromones_in_view):
+        pheromones_of_interest = np.where(pheromones_in_view > 5) # SUBSITUTE FOR initial_pheromone_intensity OF ENV
+
+        return np.any(pheromones_of_interest)
+    
+
+    def got_to_most_intense_pheromones(self, agent_position, pheromones_in_view):
+
+        most_intense_pheromone = pheromones_in_view.index(max(pheromones_in_view))
+
+        most_intense_pheromone_pos = self.find_global_pos(agent_position, most_intense_pheromone)
+
+        return self.direction_to_go(agent_position, most_intense_pheromone_pos)
+
+
 
     # ############### #
     # Private Methods #
