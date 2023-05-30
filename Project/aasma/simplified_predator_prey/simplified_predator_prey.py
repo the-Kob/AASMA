@@ -25,7 +25,9 @@ class SimplifiedPredatorPrey(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array']}
 
     def __init__(self, grid_shape=(5, 5), n_agents=2, full_observable=False, penalty=-0.5, step_cost=-0.01, max_steps=100, required_captors=2,
-                 n_foodpiles=3, foodpile_capture_reward=5, initial_foodpile_capacity=3, n_colonies=1, initial_colonies_storage=5, initial_pheromone_intensity=5, pheromone_evaporation_rate=1):
+                 n_foodpiles=3, foodpile_capture_reward=5, initial_foodpile_capacity=3,
+                 n_colonies=1, initial_colonies_storage=100, colonies_storage_decrement=1,
+                 initial_pheromone_intensity=5,pheromone_evaporation_rate=1):
         
         self._grid_shape = grid_shape
         self.n_agents = n_agents
@@ -45,15 +47,19 @@ class SimplifiedPredatorPrey(gym.Env):
         self.foodpile_capture_reward = foodpile_capture_reward
         self.foodpiles_done = False
 
+        self.has_food = False
+
         # Colonies
         self.n_colonies = n_colonies
         self.colonies_pos = {_: None for _ in range(self.n_colonies)}
         self.initial_colonies_storage = initial_colonies_storage
+        self.colonies_storage_decrement = colonies_storage_decrement
         self.colonies_storage = {_: self.initial_colonies_storage for _ in range(self.n_colonies)}  # added this
 
         # Pheromones
         self.pheromones_in_grid = [[0 for _ in range(self._grid_shape[0])] for row in range(self._grid_shape[1])] # keep pheromone level for each grid cell
         self.initial_pheromone_intensity = initial_pheromone_intensity
+        self.food_pheromone_intensity = 10 * self.initial_pheromone_intensity
         self.pheromone_evaporation_rate = pheromone_evaporation_rate
         self.n_pheromone = 0
 
@@ -122,6 +128,8 @@ class SimplifiedPredatorPrey(gym.Env):
         self.foodpile_pos = {} # added this
         self.colonies_pos = {} # added this
 
+        self.has_food = False
+
         self.pheromones_pos = {} # added this
 
         self.__init_full_obs()
@@ -149,7 +157,7 @@ class SimplifiedPredatorPrey(gym.Env):
         self._step_count += 1
         rewards = [self._step_cost for _ in range(self.n_agents)]
 
-        # Decrease intensiy of pheromones
+        # Decrease intensity of pheromones
         for row in range(self._grid_shape[0]):
             for col in range(self._grid_shape[1]):
 
@@ -169,7 +177,7 @@ class SimplifiedPredatorPrey(gym.Env):
             if (not self.foodpile_depleted[foodpile_i]):
                 predator_neighbour_count, n_i = self._neighbour_agents(self.foodpile_pos[foodpile_i])
 
-                if predator_neighbour_count >= self._required_captors:
+                if predator_neighbour_count >= self._required_captors & agents_action == 9 & self.has_food == False:
 
                     _reward = self._penalty if predator_neighbour_count < self._required_captors else self.foodpile_capture_reward
 
@@ -185,6 +193,13 @@ class SimplifiedPredatorPrey(gym.Env):
 
                     for agent_i in range(self.n_agents):
                         rewards[agent_i] += _reward
+
+                    self.has_food = True
+
+        # Decrement colony storages
+        for colony_i in range(self.n_colonies):
+            if(self.colonies_storage[colony_i] > 1):
+                self.colonies_storage[colony_i] -= self.colonies_storage_decrement
 
         # If every foodpile has been depleted, we should also stop
         if (self._step_count >= self._max_steps) or (False not in self.foodpile_depleted):
@@ -323,15 +338,40 @@ class SimplifiedPredatorPrey(gym.Env):
             next_pos = [curr_pos[0], curr_pos[1] + 1]
         elif move == 4:  # no-op
             pass
+        elif move == 5: # down pheromone (high intensity pheromone)
+            next_pos = [curr_pos[0] + 1, curr_pos[1]]
+        elif move == 6: # left pheromone (high intensity pheromone)
+            next_pos = [curr_pos[0], curr_pos[1] - 1]
+        elif move == 7: # up pheromone (high intensity pheromone)
+            next_pos = [curr_pos[0] - 1, curr_pos[1]]
+        elif move == 8: # right pheromone (high intensity pheromone)
+            next_pos = [curr_pos[0], curr_pos[1] + 1]
+        elif move == 9: # collect food
+            next_pos = [curr_pos[0], curr_pos[1]] # maintain position
+        elif move == 10: # drop food
+            next_pos = [curr_pos[0], curr_pos[1]] # maintain position
         else:
             raise Exception('Action Not found!')
 
         if next_pos is not None and self._is_cell_walkable(next_pos):
             self.agent_pos[agent_i] = next_pos
 
-            # Add pheromones to last location
-            self._full_obs[curr_pos[0]][curr_pos[1]] = PRE_IDS['pheromone'] # now the last position is going to have the pheromone tag instead of empty
-            self.pheromones_in_grid[curr_pos[0]][curr_pos[1]] = self.initial_pheromone_intensity # currently doesn't stack pheromones
+            if(move == 9 | move == 10): # movement does not happen
+                # Decrement foodpile is done in step
+
+                print("Has food")
+                print("Decrement foodpile / increment colony")
+
+            else: # movement happens
+
+                # Add pheromones to last location
+                self._full_obs[curr_pos[0]][curr_pos[1]] = PRE_IDS['pheromone'] # now the last position is going to have the pheromone tag instead of empty
+
+                if(move == 5 | move == 6 | move == 7 | move == 8):
+                    self.pheromones_in_grid[curr_pos[0]][curr_pos[1]] = self.food_pheromone_intensity # currently doesn't stack pheromones
+
+                elif(move == 0 | move == 1 | move == 2 | move == 3):
+                    self.pheromones_in_grid[curr_pos[0]][curr_pos[1]] = self.initial_pheromone_intensity # currently doesn't stack pheromones
 
         self.__update_agent_view(agent_i) # this should always happen to prevent pheromone + NOOP => empy cell with agent in there ;(
 
@@ -462,6 +502,12 @@ ACTION_MEANING = {
     2: "UP",
     3: "RIGHT",
     4: "NOOP",
+    5: "DOWN_PHERO",
+    6: "LEFT_PHERO",
+    7: "UP_PHERO",
+    8: "RIGHT_PHERO",
+    9: "COLLECT_FOOD",
+    10: "DROP_FOOD"
 }
 
 PRE_IDS = {
