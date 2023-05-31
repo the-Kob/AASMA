@@ -3,7 +3,7 @@ import argparse
 import numpy as np
 
 from aasma.wrappers import SingleAgentWrapper
-from aasma.simplified_predator_prey import SimplifiedPredatorPrey
+from aasma.simplified_predator_prey import AntColonyEnv
 
 
 if __name__ == '__main__':
@@ -20,10 +20,10 @@ if __name__ == '__main__':
     opt = parser.parse_args()
 
     # 1 - Setup the environment
-    environment = SimplifiedPredatorPrey(
-        grid_shape=(10, 10), # try 40x40
+    environment = AntColonyEnv(
+        grid_shape=(10, 10),
         n_agents=1, 
-        max_steps=100, required_captors=1,
+        max_steps=100,
         n_foodpiles=5
     )
     environment = SingleAgentWrapper(environment, agent_id=0)
