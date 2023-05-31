@@ -9,7 +9,7 @@ from aasma.wrappers import SingleAgentWrapper
 from aasma.simplified_predator_prey import SimplifiedPredatorPrey
 
 
-def run_single_agent(environment: Env, agent: Agent, n_episodes: int) -> np.ndarray:
+def run_single_agent(environment: Env, agent: Agent, n_episodes: int, agent_id: int) -> np.ndarray:
 
     results = np.zeros(n_episodes)
 
@@ -21,7 +21,7 @@ def run_single_agent(environment: Env, agent: Agent, n_episodes: int) -> np.ndar
         
         while not terminal:
             steps += 1
-            agent.see(observation)
+            agent.see(observation[0])
             action = agent.action()
             next_observation, reward, terminal, info = environment.step(action)
             # environment.render()

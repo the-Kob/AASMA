@@ -31,19 +31,21 @@ class GreedyAgent(Agent):
         self.n_agents = n_agents
         self.n_actions = N_ACTIONS
 
-
     def action(self) -> int:
 
         # [agents position _ colony position _ 25 * foodpiles _ 25 * pheromones _ colonys storage]
 
         # Make this dependent on agent view mask
-        agent_position = self.observation[:2]
-        colony_position = self.observation[2:4]
+        agent_position = self.observation[ : 2]
+        colony_position = self.observation[2 : 2 + 2] # FOR ONLY 1 COLONY
 
-        foodpiles_in_view = self.observation[4:29]
-        pheromones_in_view = self.observation[29:54]
+        foodpiles_in_view = self.observation[2 + 2 : 2 + 27]
+        pheromones_in_view = self.observation[2 + 27 : 2 + 52]
 
-        colony_storage = self.observation[-1]
+        colony_storage = self.observation[-2]
+
+        has_food = self.observation[-1]
+        
 
         # See if there are any noteworthy things in view
         foodpiles_indices = np.where(foodpiles_in_view != 0)
@@ -149,7 +151,8 @@ class GreedyAgent(Agent):
         foodpiles_in_view = beliefs[4:29]
         pheromones_in_view = beliefs[29:54]
 
-        colony_storage = beliefs[-1]
+        colony_storage = beliefs[-2]
+        has_food = beliefs[-1]
 
         # Setup desires
         desires = []
@@ -165,9 +168,7 @@ class GreedyAgent(Agent):
     
     def go_to_closest_foodpile(self, agent_position, foodpiles_positions):
         closest_foodpile_position = self.closest_point_of_interest(agent_position, foodpiles_positions)
-        return diretction_to_go(agent_position, closest_foodpile_position)
-    
- 
+        return self.direction_to_go(agent_position, closest_foodpile_position)
     
     
     def check_for_intense_pheromones(self, agent_position, pheromones_in_view):
@@ -229,9 +230,11 @@ if __name__ == '__main__':
 
     # 3 - Evaluate agents
     results = {}
+    agent_id = 0
     for agent in agents:
         result = run_single_agent(environment, agent, opt.episodes)
         results[agent.name] = result
+        agent_id += 1
 
     # 4 - Compare results
     compare_results(results, title="Agents on 'Predator Prey' Environment", colors=["orange", "green"])
