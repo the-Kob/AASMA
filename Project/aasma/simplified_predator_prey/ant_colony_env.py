@@ -19,7 +19,6 @@ class AntColonyEnv(gym.Env):
 
     """A simplified version of ma_gym.envs.predator_prey.predator_prey.PredatorPrey
     Observations do not take into account the nearest cells and an extra parameter (required_captors) was added
-
     """
 
     metadata = {'render.modes': ['human', 'rgb_array']}
