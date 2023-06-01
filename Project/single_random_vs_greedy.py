@@ -45,7 +45,6 @@ class GreedyAgent(Agent):
         colony_storage = self.observation[-2]
 
         has_food = self.observation[-1]
-        
 
         # See if there are any noteworthy things in view
         foodpiles_indices = np.where(foodpiles_in_view != 0)
@@ -177,7 +176,7 @@ class GreedyAgent(Agent):
         return np.any(pheromones_of_interest)
     
 
-    def got_to_most_intense_pheromones(self, agent_position, pheromones_in_view):
+    def go_to_most_intense_pheromones(self, agent_position, pheromones_in_view):
 
         most_intense_pheromone = pheromones_in_view.index(max(pheromones_in_view))
 
