@@ -11,12 +11,11 @@ from aasma.simplified_predator_prey import SimplifiedPredatorPrey
 
 from single_random_agent import run_single_agent, RandomAgent
 
-N_ACTIONS = 5
-DOWN, LEFT, UP, RIGHT, STAY = range(N_ACTIONS)
+N_ACTIONS = 11
+DOWN, LEFT, UP, RIGHT, STAY, DOWN_PHERO, LEFT_PHERO, UP_PHERO, RIGHT_PHERO, COLLECT_FOOD, DROP_FOOD = range(N_ACTIONS)
 
 N_POSSIBLE_DESIRES = 3
-EXPLORE, FIND_FOODPILE, GO_TO_COLONY = range(N_POSSIBLE_DESIRES)
-
+GO_TO_COLONY, EXPLORE, FIND_FOODPILE = range(N_POSSIBLE_DESIRES)
 
 class GreedyAgent(Agent):
 
@@ -30,6 +29,9 @@ class GreedyAgent(Agent):
         self.agent_id = agent_id
         self.n_agents = n_agents
         self.n_actions = N_ACTIONS
+        self.desire = 0
+        self.steps_exploring = 0
+        self.current_exploring_action = STAY
 
     def action(self) -> int:
 
@@ -39,10 +41,10 @@ class GreedyAgent(Agent):
         agent_position = self.observation[ : 2]
         colony_position = self.observation[2 : 2 + 2] # FOR ONLY 1 COLONY
 
-        foodpiles_in_view = self.observation[2 + 2 : 2 + 27]
-        pheromones_in_view = self.observation[2 + 27 : 2 + 52]
+        foodpiles_in_view = self.observation[2 + 2 : 2 + 2 + 25]
+        pheromones_in_view = self.observation[2 + 2 + 25 : 2 + 2 + 25 + 25]
 
-        colony_storage = self.observation[-2]
+        colony_storage = self.observation[-2] # FOR ONLY 1 COLONY
 
         has_food = self.observation[-1]
         
@@ -105,14 +107,13 @@ class GreedyAgent(Agent):
  
         return global_pos
 
-
-    def direction_to_go(self, agent_position, foodpile_global_pos):
+    def direction_to_go(self, agent_position, point_of_interes_pos):
         """
         Given the position of the agent and the position of a prey,
         returns the action to take in order to close the distance
         """
         
-        distances = np.array(foodpile_global_pos) - np.array(agent_position)
+        distances = np.array(point_of_interes_pos) - np.array(agent_position)
         abs_distances = np.absolute(distances)
         if abs_distances[0] > abs_distances[1]:
             return self._close_horizontally(distances)
@@ -140,32 +141,77 @@ class GreedyAgent(Agent):
                 closest_food_position =  food_position
         return closest_food_position
     
+    def check_if_destination_reached(self, agent_position, point_of_interest_pos):
+        distances = np.array(point_of_interest_pos) - np.array(agent_position)
+        abs_distances = np.absolute(distances)
+        if abs_distances[0] + abs_distances[1] > 1:
+            return False
+        elif abs_distances[0] < abs_distances[1] <= 1:
+            return True
+
     def deliberative(self):
 
-        # Setup beliefs in accordance with perceptions of the environment
+        # BELIEFS
         beliefs = self.observation
 
         agent_position = beliefs[:2]
-        colony_position = beliefs[2:4]
+        colony_position = beliefs[2:4] # FOR ONLY 1 COLONY
 
         foodpiles_in_view = beliefs[4:29]
         pheromones_in_view = beliefs[29:54]
 
-        colony_storage = beliefs[-2]
+        colony_storage = beliefs[-2] # FOR ONLY 1 COLONY
         has_food = beliefs[-1]
 
-        # Setup desires
-        desires = []
+        # DESIRES
+        if(colony_storage[0] == 0): # not near colony -> default desire, go to colony
+            desire = GO_TO_COLONY 
+        else: # near colony
+            if(colony_storage[0] < 50): # colony food storage is low -> find foodpile
+                desire = FIND_FOODPILE
+            else: # colony food storage is high -> explore
+                desire = EXPLORE
 
-        if(self.check_for_intense_pheromones(agent_position, pheromones_in_view)):
-            desires.append(FIND_FOODPILE)
+        # INTENTIONS
+        if(desire == GO_TO_COLONY):
+            if(not self.check_if_destination_reached(agent_position, colony_position)): # if th agent hasn't reached it yet...
+                action = self.go_to_colony(agent_position, colony_position) # move there
+
+            else: # if we have reached it already...
+                if(has_food == True): # drop any food, in case the agent is carrying any
+                    action = DROP_FOOD
+                else: # or just stay - next step the desire will update
+                    action = STAY
+
+        elif(desire == EXPLORE):
+            action = self.explore_randomly()
+
 
         return Exception
     
-    def go_to_colony( self, agent_position, colony_position):
+
+    
+    def go_to_colony(self, agent_position, colony_position):
         return self.direction_to_go(agent_position, colony_position)
     
-    
+    def explore_randomly(self):
+        if(self.steps_exploring == 0): # hasn't been exploring -> choose direction and keep it for 5 steps (arbitrary amount)
+            self.current_exploring_action = random.randint(0, 3)
+
+        elif(self.steps_exploring >= 5): # has explored enough in one direction -> choose another which isn't the opposite
+                
+            new_exploring_action = random.randint(0, 3)
+            while(new_exploring_action == self.current_exploring_action + 2 or new_exploring_action == self.current_exploring_action - 2):
+                new_exploring_action = random.randint(0, 3)
+            
+            self.current_exploring_action = new_exploring_action
+            self.steps_exploring = 0 # this action isn't changed in next call because of the += 1 below
+
+        self.steps_exploring += 1
+
+        return self.current_exploring_action
+
+
     def go_to_closest_foodpile(self, agent_position, foodpiles_positions):
         closest_foodpile_position = self.closest_point_of_interest(agent_position, foodpiles_positions)
         return self.direction_to_go(agent_position, closest_foodpile_position)
