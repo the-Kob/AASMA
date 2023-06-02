@@ -193,6 +193,8 @@ class GreedyAgent(Agent):
             else:
                 desire = FIND_FOODPILE
 
+            # IF SEES HIGH INTENSITY PHEROMONES, FOLLOWS THEM (maybe not)
+
         if(self.desire == FIND_FOODPILE):
             if(self.check_for_foodpiles_in_view(foodpiles_in_view)): # we have a foodpile in view...
                 action, closest_foodpile_pos = self.go_to_closest_foodpile(agent_position, foodpiles_in_view)
@@ -206,11 +208,11 @@ class GreedyAgent(Agent):
                 if(self.following_trail): # if we're already following a trail...
 
                     if(not self.check_if_destination_reached(agent_position, self.promising_pheromone_pos)): # if we haven't reach the promising pheromone...
-                        action = self.direction_to_go(agent_position, self.promising_pheromone_pos) # keep at it!
+                        action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False) # keep at it!
                     else:
-
-                    
-                    print("Follow pheromones")
+                        # Approach central pheromone, so we can see surrounding 4 tiles
+                        # Follow the trail back to the foodpile
+                        print("Follow pheromones")
 
                 if(self.check_for_intense_pheromones_in_view(pheromones_in_view)): # check for high intensity pheromones
                     action, most_intense_pheromone_pos = self.go_to_most_intense_pheromone(agent_position, pheromones_in_view)
@@ -275,10 +277,6 @@ class GreedyAgent(Agent):
         most_intense_pheromone_pos = self.find_global_pos(agent_position, most_intense_pheromone)
 
         return self.direction_to_go(agent_position, most_intense_pheromone_pos, False), most_intense_pheromone
-
-    def examine_surrounding_pheromones(self, pheromones_in_view):
-        
-        if(pheromones_in_view[7] != 0 or pheromones_in_view[11] != 0 or pheromones_in_view[13] != 0 or pheromones_in_view[17] != 0):
 
 
     # ############### #
