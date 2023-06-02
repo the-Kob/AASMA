@@ -146,7 +146,7 @@ class GreedyAgent(Agent):
         abs_distances = np.absolute(distances)
         if abs_distances[0] + abs_distances[1] > 1:
             return False
-        elif abs_distances[0] < abs_distances[1] <= 1:
+        elif abs_distances[0] + abs_distances[1] <= 1:
             return True
 
     def deliberative(self):
@@ -197,6 +197,7 @@ class GreedyAgent(Agent):
                 action = self.go_to_closest_foodpile(agent_position, foodpiles_in_view)
             else:
                 print("Follow pheromones")
+                print("Find foodpile, collect food, self.desire = none")
 
 
         return Exception
