@@ -29,7 +29,7 @@ class GreedyAgent(Agent):
         self.agent_id = agent_id
         self.n_agents = n_agents
         self.n_actions = N_ACTIONS
-        self.desire = 0
+        self.desire = None
         self.steps_exploring = 0
         self.current_exploring_action = STAY
 
@@ -49,8 +49,9 @@ class GreedyAgent(Agent):
         has_food = self.observation[-1]
 
         # See if there are any noteworthy things in view
-        foodpiles_indices = np.where(foodpiles_in_view != 0)
-        pheromones_indices = np.where(pheromones_in_view != 0)
+        foodpiles_indices = np.where(foodpiles_in_view != 0)[0]
+        pheromones_indices = np.where(pheromones_in_view != 0)[0]
+
 
         # Determine what the agent should do...
         # WHAT TO DO??? EXPLORE? PHEROMONES? FOOD? COLONY? -> DELIBERATIVE AND REACTIVE
@@ -125,20 +126,20 @@ class GreedyAgent(Agent):
         
     def closest_point_of_interest(self, agent_position, points_of_interest):
         """
-        Given the positions of an agent and a sequence of positions of all prey,
-        returns the positions of the closest prey.
-        If there are no preys, None is returned instead
+        Given the positions of an agent and a sequence of positions of points of interest,
+        returns the positions of the point of interest (poi).
         """
+
         min = math.inf
-        closest_prey_position = None
-        n_preys = int(len(points_of_interest) / 2)
-        for p in range(n_preys):
-            food_position = points_of_interest[p * 2], points_of_interest[(p * 2) + 1]
-            distance = cityblock(agent_position,  food_position)
+        closest_poi_position = None
+        n_poi = int(len(points_of_interest) / 2)
+        for poi_i in range(n_poi):
+            poi_position = points_of_interest[poi_i * 2], points_of_interest[(poi_i * 2) + 1]
+            distance = cityblock(agent_position,  poi_position)
             if distance < min:
                 min = distance
-                closest_food_position =  food_position
-        return closest_food_position
+                closest_poi_position =  poi_position
+        return closest_poi_position
     
     def check_if_destination_reached(self, agent_position, point_of_interest_pos):
         distances = np.array(point_of_interest_pos) - np.array(agent_position)
@@ -163,17 +164,18 @@ class GreedyAgent(Agent):
         has_food = beliefs[-1]
 
         # DESIRES
-        if(colony_storage[0] == 0): # not near colony -> default desire, go to colony
-            desire = GO_TO_COLONY 
-        else: # near colony
-            if(colony_storage[0] < 50): # colony food storage is low -> find foodpile
-                desire = FIND_FOODPILE
-            else: # colony food storage is high -> explore
-                desire = EXPLORE
+        if(self.desire == None):
+            if(has_food or colony_storage == 0): # has food, not near colony or by default -> go to colony
+                self.desire = GO_TO_COLONY 
+            else: # near colony
+                if(colony_storage < 50): # colony food storage is low -> find foodpile
+                    self.desire = FIND_FOODPILE
+                else: # colony food storage is high -> explore
+                    self.desire = EXPLORE
 
         # INTENTIONS
-        if(desire == GO_TO_COLONY):
-            if(not self.check_if_destination_reached(agent_position, colony_position)): # if th agent hasn't reached it yet...
+        if(self.desire == GO_TO_COLONY):
+            if(not self.check_if_destination_reached(agent_position, colony_position)): # if the agent hasn't reached it yet...
                 action = self.go_to_colony(agent_position, colony_position) # move there
 
             else: # if we have reached it already...
@@ -182,13 +184,23 @@ class GreedyAgent(Agent):
                 else: # or just stay - next step the desire will update
                     action = STAY
 
-        elif(desire == EXPLORE):
-            action = self.explore_randomly()
+            self.desire = None # find a new desire
+
+        elif(self.desire == EXPLORE):
+            if(not self.check_for_foodpiles_in_view(foodpiles_in_view)):
+                action = self.explore_randomly()
+            else:
+                desire = FIND_FOODPILE
+
+        elif(self.desire == FIND_FOODPILE):
+            if(self.check_for_foodpiles_in_view(foodpiles_in_view)):
+                action = self.go_to_closest_foodpile(agent_position, foodpiles_in_view)
+            else:
+                print("Follow pheromones")
 
 
         return Exception
     
-
     
     def go_to_colony(self, agent_position, colony_position):
         return self.direction_to_go(agent_position, colony_position)
@@ -210,18 +222,33 @@ class GreedyAgent(Agent):
 
         return self.current_exploring_action
 
-
-    def go_to_closest_foodpile(self, agent_position, foodpiles_positions):
-        closest_foodpile_position = self.closest_point_of_interest(agent_position, foodpiles_positions)
-        return self.direction_to_go(agent_position, closest_foodpile_position)
-    
-    
-    def check_for_intense_pheromones(self, agent_position, pheromones_in_view):
-        pheromones_of_interest = np.where(pheromones_in_view > 5) # SUBSITUTE FOR initial_pheromone_intensity OF ENV
+    def check_for_foodpiles_in_view(self, foodpiles_in_view):
+        if(any(foodpiles_in_view)): # if there are any food_piles_in_view
+            return True
+        else:
+            return False
+        
+    def check_for_intense_pheromones_in_view(self, pheromones_in_view):
+        pheromones_of_interest = np.where(pheromones_in_view > 5)[0] # SUBSITUTE FOR initial_pheromone_intensity OF ENV
 
         return np.any(pheromones_of_interest)
-    
 
+    def go_to_closest_foodpile(self, agent_position, foodpiles_in_view):
+        foodpiles_indices = np.where(foodpiles_in_view != 0)[0] # gather for non null indices
+
+        # Get corresponding positions in array format
+        foodpiles_positions = np.zeros(len(foodpiles_indices) * 2)
+
+        for foodpile_i in range(len(foodpiles_indices)): 
+            foodpile_i_pos = self.find_global_pos(foodpile_i)
+            foodpiles_positions[foodpile_i * 2] = foodpile_i_pos[0]
+            foodpiles_positions[foodpile_i * 2 + 1] = foodpile_i_pos[1]
+
+        # Check closest foodpile position and move there
+        closest_foodpile_position = self.closest_point_of_interest(agent_position, foodpiles_positions)
+
+        return self.direction_to_go(agent_position, closest_foodpile_position)
+    
     def go_to_most_intense_pheromones(self, agent_position, pheromones_in_view):
 
         most_intense_pheromone = pheromones_in_view.index(max(pheromones_in_view))
