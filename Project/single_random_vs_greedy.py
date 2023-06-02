@@ -32,6 +32,8 @@ class GreedyAgent(Agent):
         self.desire = None
         self.steps_exploring = 0
         self.current_exploring_action = STAY
+        self.following_trail = False
+        self.promising_pheromone_pos = None
 
     def action(self) -> int:
 
@@ -107,7 +109,7 @@ class GreedyAgent(Agent):
  
         return global_pos
 
-    def direction_to_go(self, agent_position, point_of_interes_pos):
+    def direction_to_go(self, agent_position, point_of_interes_pos, has_food):
         """
         Given the position of the agent and the position of a prey,
         returns the action to take in order to close the distance
@@ -116,13 +118,12 @@ class GreedyAgent(Agent):
         distances = np.array(point_of_interes_pos) - np.array(agent_position)
         abs_distances = np.absolute(distances)
         if abs_distances[0] > abs_distances[1]:
-            return self._close_horizontally(distances)
+            return self._close_horizontally(distances, has_food) 
         elif abs_distances[0] < abs_distances[1]:
-            return self._close_vertically(distances)
+            return self._close_vertically(distances, has_food)
         else:
             roll = random.uniform(0, 1)
-            return self._close_horizontally(distances) if roll > 0.5 else self._close_vertically(distances)
-        
+            return self._close_horizontally(distances, has_food) if roll > 0.5 else self._close_vertically(distances, has_food)
         
     def closest_point_of_interest(self, agent_position, points_of_interest):
         """
@@ -165,7 +166,7 @@ class GreedyAgent(Agent):
 
         # DESIRES
         if(self.desire == None):
-            if(has_food or colony_storage == 0): # has food, not near colony or by default -> go to colony
+            if(has_food or colony_storage == 0): # has food or colony not visible or by default -> go to colony
                 self.desire = GO_TO_COLONY 
             else: # near colony
                 if(colony_storage < 50): # colony food storage is low -> find foodpile
@@ -176,7 +177,7 @@ class GreedyAgent(Agent):
         # INTENTIONS
         if(self.desire == GO_TO_COLONY):
             if(not self.check_if_destination_reached(agent_position, colony_position)): # if the agent hasn't reached it yet...
-                action = self.go_to_colony(agent_position, colony_position) # move there
+                action = self.go_to_colony(agent_position, colony_position, has_food) # move there
 
             else: # if we have reached it already...
                 if(has_food == True): # drop any food, in case the agent is carrying any
@@ -184,7 +185,7 @@ class GreedyAgent(Agent):
                 else: # or just stay - next step the desire will update
                     action = STAY
 
-            self.desire = None # find a new desire
+            self.desire = None # desire accomplished, find a new desire
 
         elif(self.desire == EXPLORE):
             if(not self.check_for_foodpiles_in_view(foodpiles_in_view)):
@@ -192,19 +193,39 @@ class GreedyAgent(Agent):
             else:
                 desire = FIND_FOODPILE
 
-        elif(self.desire == FIND_FOODPILE):
-            if(self.check_for_foodpiles_in_view(foodpiles_in_view)):
-                action = self.go_to_closest_foodpile(agent_position, foodpiles_in_view)
-            else:
-                print("Follow pheromones")
-                print("Find foodpile, collect food, self.desire = none")
+        if(self.desire == FIND_FOODPILE):
+            if(self.check_for_foodpiles_in_view(foodpiles_in_view)): # we have a foodpile in view...
+                action, closest_foodpile_pos = self.go_to_closest_foodpile(agent_position, foodpiles_in_view)
+                
+                if(self.check_if_destination_reached(closest_foodpile_pos)):
+                    action = COLLECT_FOOD
+                    self.desire = None # desire accomplished, find a new desire
+
+            else: # if we don't have a foodpile in view...
+
+                if(self.following_trail): # if we're already following a trail...
+
+                    if(not self.check_if_destination_reached(agent_position, self.promising_pheromone_pos)): # if we haven't reach the promising pheromone...
+                        action = self.direction_to_go(agent_position, self.promising_pheromone_pos) # keep at it!
+                    else:
+
+                    
+                    print("Follow pheromones")
+
+                if(self.check_for_intense_pheromones_in_view(pheromones_in_view)): # check for high intensity pheromones
+                    action, most_intense_pheromone_pos = self.go_to_most_intense_pheromone(agent_position, pheromones_in_view)
+                    self.promising_pheromone_pos = most_intense_pheromone_pos
+                    self.following_trail = True
+                else: # if we don't have high intensity pheromones in view...
+                    action = random.randint(0, 3) # we are changing desires but still need to pick an action!
+                    self.desire = EXPLORE
 
 
-        return Exception
+        return action
     
     
-    def go_to_colony(self, agent_position, colony_position):
-        return self.direction_to_go(agent_position, colony_position)
+    def go_to_colony(self, agent_position, colony_position, has_food):
+        return self.direction_to_go(agent_position, colony_position, has_food)
     
     def explore_randomly(self):
         if(self.steps_exploring == 0): # hasn't been exploring -> choose direction and keep it for 5 steps (arbitrary amount)
@@ -224,10 +245,7 @@ class GreedyAgent(Agent):
         return self.current_exploring_action
 
     def check_for_foodpiles_in_view(self, foodpiles_in_view):
-        if(any(foodpiles_in_view)): # if there are any food_piles_in_view
-            return True
-        else:
-            return False
+        return any(foodpiles_in_view) # if there are any food_piles_in_view
         
     def check_for_intense_pheromones_in_view(self, pheromones_in_view):
         pheromones_of_interest = np.where(pheromones_in_view > 5)[0] # SUBSITUTE FOR initial_pheromone_intensity OF ENV
@@ -248,35 +266,50 @@ class GreedyAgent(Agent):
         # Check closest foodpile position and move there
         closest_foodpile_position = self.closest_point_of_interest(agent_position, foodpiles_positions)
 
-        return self.direction_to_go(agent_position, closest_foodpile_position)
+        return self.direction_to_go(agent_position, closest_foodpile_position, False), closest_foodpile_position
     
-    def go_to_most_intense_pheromones(self, agent_position, pheromones_in_view):
+    def go_to_most_intense_pheromone(self, agent_position, pheromones_in_view):
 
-        most_intense_pheromone = pheromones_in_view.index(max(pheromones_in_view))
+        most_intense_pheromone = pheromones_in_view[np.argmax(pheromones_in_view)]
 
         most_intense_pheromone_pos = self.find_global_pos(agent_position, most_intense_pheromone)
 
-        return self.direction_to_go(agent_position, most_intense_pheromone_pos)
+        return self.direction_to_go(agent_position, most_intense_pheromone_pos, False), most_intense_pheromone
 
+    def examine_surrounding_pheromones(self, pheromones_in_view):
+        
+        if(pheromones_in_view[7] != 0 or pheromones_in_view[11] != 0 or pheromones_in_view[13] != 0 or pheromones_in_view[17] != 0):
 
 
     # ############### #
     # Private Methods #
     # ############### #
 
-    def _close_horizontally(self, distances):
+    def _close_horizontally(self, distances, has_food):
         if distances[0] > 0:
-            return RIGHT
+            if(has_food):
+                return RIGHT_PHERO
+            else:
+                return RIGHT
         elif distances[0] < 0:
-            return LEFT
+            if(has_food):
+                return LEFT_PHERO
+            else:
+                return LEFT
         else:
             return STAY
 
-    def _close_vertically(self, distances):
+    def _close_vertically(self, distances, has_food):
         if distances[1] > 0:
-            return DOWN
+            if(has_food):
+                return DOWN_PHERO
+            else:
+                return DOWN
         elif distances[1] < 0:
-            return UP
+            if(has_food):
+                return UP_PHERO
+            else:
+                return UP
         else:
             return STAY
 

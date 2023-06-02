@@ -26,7 +26,7 @@ class AntColonyEnv(gym.Env):
     def __init__(self, grid_shape=(5, 5), n_agents=2, full_observable=False, penalty=-0.5, step_cost=-0.01, max_steps=100,
                  n_foodpiles=3, foodpile_capture_reward=5, initial_foodpile_capacity=3, foodpile_capacity_decrement=20,
                  n_colonies=1, initial_colonies_storage=100, colonies_storage_decrement=1, colonies_storage_increment=20, colonies_deposit_reward=10,
-                 initial_pheromone_intensity=5,pheromone_evaporation_rate=1):
+                 initial_pheromone_intensity=5, pheromone_evaporation_rate=1):
         
         self._grid_shape = grid_shape
         self.n_agents = n_agents
@@ -61,7 +61,7 @@ class AntColonyEnv(gym.Env):
         # Pheromones
         self.pheromones_in_grid = [[0 for _ in range(self._grid_shape[0])] for row in range(self._grid_shape[1])] # keep pheromone level for each grid cell
         self.initial_pheromone_intensity = initial_pheromone_intensity
-        self.food_pheromone_intensity = 10
+        self.food_pheromone_intensity = initial_pheromone_intensity * 4
         self.pheromone_evaporation_rate = pheromone_evaporation_rate
         self.n_pheromone = 0
 
