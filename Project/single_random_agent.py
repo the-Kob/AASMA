@@ -38,7 +38,7 @@ if __name__ == '__main__':
 
     # 3 - Evaluate agent
     results = {
-        agent.name: run_single_agent(environment, agent, opt.episodes)
+        #agent.name: run_single_agent(environment, agent, opt.episodes)
     }
 
     # 4 - Compare results

@@ -401,6 +401,9 @@ class AntColonyEnv(gym.Env):
     def _is_cell_walkable(self, pos):
         return self.is_valid(pos) and ((self._full_obs[pos[0]][pos[1]] == PRE_IDS['empty']) or (self._full_obs[pos[0]][pos[1]] == PRE_IDS['pheromone']))
     
+    def _is_cell_obstacle(self, pos):
+        return self.is_valid(pos) and (('C' in self._full_obs[pos[0]][pos[1]]) or ('F' in self._full_obs[pos[0]][pos[1]]))
+    
     def _is_cell_vacant(self, pos):
         return self.is_valid(pos) and (self._full_obs[pos[0]][pos[1]] == PRE_IDS['empty'])
 
@@ -433,7 +436,6 @@ class AntColonyEnv(gym.Env):
         else:
             raise Exception('Action Not found!')
         
-    
         # For COLLECT_FOOD (9)
         # Decrement foodpile is done in step
         # Has food is changed to true in step
@@ -442,6 +444,7 @@ class AntColonyEnv(gym.Env):
         # Increment colony storage is done in step
         # Has food is changed to false in step
 
+        move, next_pos = self.__avoid_obstacles(move, curr_pos, next_pos)
 
         if next_pos is not None and self._is_cell_walkable(next_pos):
             self.agent_pos[agent_i] = next_pos
@@ -458,6 +461,40 @@ class AntColonyEnv(gym.Env):
                     self.pheromones_in_grid[curr_pos[0]][curr_pos[1]] += self.initial_pheromone_intensity # currently stacks pheromones
 
         self.__update_agent_view(agent_i) # this should always happen to prevent pheromone + NOOP => empy cell with agent in there ;(
+
+    def __avoid_obstacles(self, move, curr_pos, next_pos):
+
+        if(next_pos is not None and self._is_cell_obstacle(next_pos)):
+
+            if(move == 0 or move == 2): # object is obstructing up/down
+                move = random.randrange(1, 4, 2) # gives odds
+                if move == 1:  # left
+                    next_pos = [curr_pos[0], curr_pos[1] - 1]
+                elif move == 3:  # right
+                    next_pos = [curr_pos[0], curr_pos[1] + 1]
+
+            elif(move == 1 or move == 3): # object is obstructing left/right
+                move = random.randrange(0, 3, 2) # gives evens
+                if move == 0:  # down
+                    next_pos = [curr_pos[0] + 1, curr_pos[1]]
+                elif move == 2:  # up
+                    next_pos = [curr_pos[0] - 1, curr_pos[1]]
+
+            elif(move == 5 or move == 7): # object is obstructing up_phero/down_phero
+                move = random.randrange(6, 9, 2) # gives evens
+                if move == 6:  # left_phero
+                    next_pos = [curr_pos[0], curr_pos[1] - 1]
+                elif move == 8:  # right_phero
+                    next_pos = [curr_pos[0], curr_pos[1] + 1]
+
+            elif(move == 6 or move == 8): # object is obstructing left_phero/right_phero
+                move = random.randrange(5, 8, 2) # gives odds
+                if move == 5:  # down_phero
+                    next_pos = [curr_pos[0] + 1, curr_pos[1]]
+                elif move == 7:  # up_phero
+                    next_pos = [curr_pos[0] - 1, curr_pos[1]]
+        
+        return move, next_pos
 
     def __update_agent_view(self, agent_i):
         self._full_obs[self.agent_pos[agent_i][0]][self.agent_pos[agent_i][1]] = PRE_IDS['agent'] + str(agent_i + 1)
@@ -534,7 +571,7 @@ class AntColonyEnv(gym.Env):
                 #                fill='white', margin=0.4)
 
                 write_cell_text(img, text=str(self.foodpile_capacity[foodpile_i]), pos=self.foodpile_pos[foodpile_i], cell_size=CELL_SIZE,
-                                fill='white', margin=0.4)
+                               fill='white', margin=0.4)
         
         # Colonies render 
         for colony_i in range(self.n_colonies):
@@ -548,9 +585,9 @@ class AntColonyEnv(gym.Env):
 
         # UNCOMMENT TO VIEW TAGS
         #for row in range(self._grid_shape[0]):
-            #for col in range(self._grid_shape[1]):
-                #write_cell_text(img, text=str(self._full_obs[col][row]), pos=[col, row], cell_size=CELL_SIZE,
-                #            fill='white', margin=0.4)
+        #    for col in range(self._grid_shape[1]):
+        #        write_cell_text(img, text=str(self._full_obs[col][row]), pos=[col, row], cell_size=CELL_SIZE,
+        #                    fill='white', margin=0.4)
 
         img = np.asarray(img)
         if mode == 'rgb_array':
