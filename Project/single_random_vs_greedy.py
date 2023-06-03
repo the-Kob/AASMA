@@ -3,13 +3,14 @@ import random
 import argparse
 import numpy as np
 from scipy.spatial.distance import cityblock
+from gym import Env
 
 from aasma import Agent
 from aasma.utils import compare_results
 from aasma.wrappers import SingleAgentWrapper
-from aasma.simplified_predator_prey import SimplifiedPredatorPrey
+from aasma.simplified_predator_prey import AntColonyEnv
 
-from single_random_agent import run_single_agent, RandomAgent
+#from single_random_agent import run_single_agent, RandomAgent
 
 N_ACTIONS = 11
 DOWN, LEFT, UP, RIGHT, STAY, DOWN_PHERO, LEFT_PHERO, UP_PHERO, RIGHT_PHERO, COLLECT_FOOD, DROP_FOOD = range(N_ACTIONS)
@@ -17,15 +18,39 @@ DOWN, LEFT, UP, RIGHT, STAY, DOWN_PHERO, LEFT_PHERO, UP_PHERO, RIGHT_PHERO, COLL
 N_POSSIBLE_DESIRES = 3
 GO_TO_COLONY, EXPLORE, FIND_FOODPILE = range(N_POSSIBLE_DESIRES)
 
-class GreedyAgent(Agent):
+def run_single_agent(environment: Env, agent: Agent, n_episodes: int, agent_id: int) -> np.ndarray:
+
+    results = np.zeros(n_episodes)
+
+    for episode in range(n_episodes):
+
+        steps = 0
+        terminal = False
+        observation = environment.reset()
+        
+        while not terminal:
+            steps += 1
+            agent.see(observation[0])
+            action = agent.action()
+            next_observation, reward, terminal, info = environment.step(action)
+            environment.render()
+            observation = next_observation
+        
+        environment.close()
+        results[episode] = steps
+
+    return results
+
+
+class DeliberativeAgent(Agent):
 
     """
-    A baseline agent for the SimplifiedPredatorPrey environment.
-    The greedy agent finds the nearest prey and moves towards it.
+    A baseline agent for the AntColonyEnv environment.
+    The deliberative agent has beliefs, desires and intention
     """
 
     def __init__(self, agent_id, n_agents):
-        super(GreedyAgent, self).__init__(f"Greedy Agent")
+        super(DeliberativeAgent, self).__init__(f"Deliberative Agent")
         self.agent_id = agent_id
         self.n_agents = n_agents
         self.n_actions = N_ACTIONS
@@ -39,41 +64,19 @@ class GreedyAgent(Agent):
 
         # [agents position _ colony position _ 25 * foodpiles _ 25 * pheromones _ colonys storage]
 
-        # Make this dependent on agent view mask
-        agent_position = self.observation[ : 2]
-        colony_position = self.observation[2 : 2 + 2] # FOR ONLY 1 COLONY
+        # MAKE OBSERVATIONS DEPENDENT ON VIEWMASK
+        # MAKE THINGS DEPENDET ON INITIAL INTENSITY PHEROMONE LEVEL
+        # ONLY WORKS FOR A SINGLE COLONY
+        # IN EXPLORE, SHOULD WE ADD A "IF SEES HIGH INTENSITY PHEROMONES, FOLLOWS THEM" (maybe not) -> Already accounted for in FIND_FOODPILE
+        #   (when the ant can't find strong pheromones, it randomly explores but this should be different from normal exploring, 
+        #   where the ant is supposed to avoid exploiting other foodpiles)
+        # INCREASE FOOD PHEROMONE MORE, TO BE SAFE
+        # THE AGENT MIGHT MISS RELEVANT HIGH INTENSITY PHEROMONES IF IT DOESN'T GO TO THE COLONY AND MERELY LOOKS AT IT (LINE 189)
+        # IN examine_promising_pheromones, WE ARE MERELY USING DISTANCE AND NOT PHEROMONE INTENSITY LEVELS... HOW DO WE CHANGE THIS?
 
-        foodpiles_in_view = self.observation[2 + 2 : 2 + 2 + 25]
-        pheromones_in_view = self.observation[2 + 2 + 25 : 2 + 2 + 25 + 25]
+        action_to_perform = self.deliberative_architecture()
 
-        colony_storage = self.observation[-2] # FOR ONLY 1 COLONY
-
-        has_food = self.observation[-1]
-
-        # See if there are any noteworthy things in view
-        foodpiles_indices = np.where(foodpiles_in_view != 0)[0]
-        pheromones_indices = np.where(pheromones_in_view != 0)[0]
-
-
-        # Determine what the agent should do...
-        # WHAT TO DO??? EXPLORE? PHEROMONES? FOOD? COLONY? -> DELIBERATIVE AND REACTIVE
-
-        # WHAT IS THE GLOBAL POSITION OF THIS POINT OF INTEREST?
-
-        # Agent wants to explore first foodpile it sees
-        foodpile_global_pos = self.find_global_pos(agent_position, foodpiles_indices[0])
-
-        point_of_interest = foodpile_global_pos
-
-        # WHAT ACTION SHOULD THE AGENT MAKE IN ORDER TO GO TO THE POINT OF INTEREST?
-        action = self.direction_to_go(agent_position, foodpile_global_pos) # return this
-    
-        # If were going after a given target,
-        #closest_prey_position = self.closest_prey(agent_position, preys_positions)       
-
-        #return self.direction_to_go(agent_position, closest_prey_position)
-
-        return action
+        return action_to_perform
 
     # ################# #
     # Auxiliary Methods #
@@ -151,6 +154,23 @@ class GreedyAgent(Agent):
                 closest_poi_position =  poi_position
         return closest_poi_position
     
+    def farthest_point_of_interest(self, colony_position, points_of_interest):
+        """
+        Given the positions of a colony and a sequence of positions of points of interest,
+        returns the positions of the point of interest (poi).
+        """
+
+        max_dist = 0
+        closest_poi_position = None
+        n_poi = int(len(points_of_interest) / 2)
+        for poi_i in range(n_poi):
+            poi_position = points_of_interest[poi_i * 2], points_of_interest[(poi_i * 2) + 1]
+            distance = cityblock(colony_position,  poi_position)
+            if distance > max_dist:
+                max_dist = distance
+                farthest_poi_position =  poi_position
+        return farthest_poi_position
+
     def check_if_destination_reached(self, agent_position, point_of_interest_pos):
         distances = np.array(point_of_interest_pos) - np.array(agent_position)
         abs_distances = np.absolute(distances)
@@ -159,7 +179,7 @@ class GreedyAgent(Agent):
         elif abs_distances[0] + abs_distances[1] <= 1:
             return True
 
-    def deliberative(self):
+    def deliberative_architecture(self):
 
         # BELIEFS
         beliefs = self.observation
@@ -175,7 +195,7 @@ class GreedyAgent(Agent):
 
         # DESIRES
         if(self.desire == None):
-            if(has_food or colony_storage == 0): # has food or colony not visible or by default -> go to colony
+            if(has_food or not self.check_if_destination_reached(agent_position, colony_position)): # has food or colony not visible or by default -> go to colony
                 self.desire = GO_TO_COLONY 
             else: # near colony
                 if(colony_storage < 50): # colony food storage is low -> find foodpile
@@ -194,7 +214,7 @@ class GreedyAgent(Agent):
                 else: # or just stay - next step the desire will update
                     action = STAY
 
-            self.desire = None # desire accomplished, find a new desire
+                self.desire = None # desire accomplished, find a new desire
 
         elif(self.desire == EXPLORE):
             if(not self.check_for_foodpiles_in_view(foodpiles_in_view)):
@@ -202,8 +222,9 @@ class GreedyAgent(Agent):
             else:
                 desire = FIND_FOODPILE
 
-            # IF SEES HIGH INTENSITY PHEROMONES, FOLLOWS THEM (maybe not) -> Already accounted for in FIND_FOODPILE (when the ant can't find strong pheromones, it randomly explores
-            # but this should be different from normal exploring, where the ant is supposed to avoid exploiting other foodpiles)
+        # IN EXPLORE, SHOULD WE ADD A "IF SEES HIGH INTENSITY PHEROMONES, FOLLOWS THEM" (maybe not) -> Already accounted for in FIND_FOODPILE
+        #   (when the ant can't find strong pheromones, it randomly explores but this should be different from normal exploring, 
+        #   where the ant is supposed to avoid exploiting other foodpiles)
 
         if(self.desire == FIND_FOODPILE):
             if(self.check_for_foodpiles_in_view(foodpiles_in_view)): # we have a foodpile in view...
@@ -220,19 +241,17 @@ class GreedyAgent(Agent):
             else: # if we don't have a foodpile in view...
 
                 if(self.following_trail): # if we're already following a trail...
-                    if(not self.check_for_foodpiles_in_view(foodpiles_in_view)):
-                        action = self.examine_promising_pheromones(agent_position, pheromones_in_view)
+                    action = self.examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
 
-                elif (self.check_for_intense_pheromones_in_view(pheromones_in_view)): # check for high intensity pheromones
-                    action, most_intense_pheromone_pos = self.go_to_most_intense_pheromone(agent_position, pheromones_in_view)
-                    self.promising_pheromone_pos = most_intense_pheromone_pos
+                elif(self.check_for_intense_pheromones_in_view(pheromones_in_view)): # check for high intensity pheromones
+                    self.most_promising_pheromone_pos = self.identify_most_intense_pheromone(agent_position, pheromones_in_view)
+                    action = self.examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
                     self.following_trail = True
 
                 else: # if we don't have high intensity pheromones in view...
                     action = self.explore_randomly() # we are changing desires but still need to pick an action! -> explore to find pheromones
 
         return action
-    
     
     def go_to_colony(self, agent_position, colony_position, has_food):
         return self.direction_to_go(agent_position, colony_position, has_food)
@@ -278,22 +297,20 @@ class GreedyAgent(Agent):
 
         return self.direction_to_go(agent_position, closest_foodpile_position, False), closest_foodpile_position
     
-    def go_to_most_intense_pheromone(self, agent_position, pheromones_in_view):
+    def identify_most_intense_pheromone(self, agent_position, pheromones_in_view):
 
         most_intense_pheromone = pheromones_in_view[np.argmax(pheromones_in_view)]
 
         most_intense_pheromone_pos = self.find_global_pos(agent_position, most_intense_pheromone)
 
-        return self.direction_to_go(agent_position, most_intense_pheromone_pos, False), most_intense_pheromone
+        return most_intense_pheromone_pos
 
-    def examine_promising_pheromones(self, agent_position, pheromones_in_view):
+    def examine_promising_pheromones(self, agent_position, pheromones_in_view, colony_position):
 
         distances = np.array(self.promising_pheromone_pos) - np.array(agent_position)
         abs_distances = np.absolute(distances)
 
-        if(abs_distances[0] == 1 or abs_distances[1] == 1): # WHAT IF THE PHEROMONE IS RIGHT BESIDES THE AGENT?? INCREASE FOOD PHEROMONE MUCH MORE!!!
-
-            # THE AGENT MIGHT MISS RELEVANT HIGH INTENSITY PHEROMONES IF IT DOESN'T GO TO THE COLONY AND MERELY LOOKS AT IT (LINE 178)
+        if(abs_distances[0] == 1 or abs_distances[1] == 1):
             promising_pheromone_relative_index = self.find_relative_index(self.promising_pheromone_pos)
 
             surrounding_pheromone_down = pheromones_in_view[promising_pheromone_relative_index + 5]
@@ -306,12 +323,26 @@ class GreedyAgent(Agent):
 
             if(pheromones_in_view(surrounding_pheromones[next_promising_pheromone]) == 0): # lost trail... 
                 self.following_trail = False
-                action = STAY
+                action = self.explore_randomly()
                 return action
 
+    # This option utilizes pheromone levels -> CAN CAUSE INFINTE LOOPS (check file 10)
             # Move into the position of the current promising pheromone, and update the promising pheromone
+            #action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
+            #self.promising_pheromone_pos = self.find_global_pos(agent_position, surrounding_pheromones[next_promising_pheromone])
+
+    # This option utilizes distance from colony (we keep maximizing it)
+            surrounding_pheromone_down_pos = self.find_global_pos(promising_pheromone_relative_index + 5)
+            surrounding_pheromone_left_pos = self.find_global_pos(promising_pheromone_relative_index - 1)
+            surrounding_pheromone_up_pos = self.find_global_pos(promising_pheromone_relative_index - 5)
+            surrounding_pheromone_right_pos = self.find_global_pos(promising_pheromone_relative_index + 1)
+
+            pos1 = np.concatenate((surrounding_pheromone_down_pos, surrounding_pheromone_left_pos))
+            pos2 = np.concatenate((pos1, surrounding_pheromone_up_pos))
+            surrounding_pheromones_pos = np.concatenate((pos2, surrounding_pheromone_right_pos))
+
+            self.promising_pheromone_pos = self.farthest_point_of_interest(colony_position, surrounding_pheromones_pos)
             action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
-            self.promising_pheromone_pos = self.find_global_pos(agent_position, surrounding_pheromones[next_promising_pheromone])
 
             return action
         
@@ -359,17 +390,18 @@ if __name__ == '__main__':
     opt = parser.parse_args()
 
     # 1 - Setup environment
-    environment = SimplifiedPredatorPrey(
-        grid_shape=(7, 7),
-        n_agents=1,
-        max_steps=100, required_captors=1
+    environment = AntColonyEnv(
+        grid_shape=(10, 10),
+        n_agents=1, 
+        max_steps=100,
+        n_foodpiles=5
     )
     environment = SingleAgentWrapper(environment, agent_id=0)
 
     # 2 - Setup agents
     agents = [
         #RandomAgent(environment.action_space.n),
-        GreedyAgent(agent_id=0, n_agents=1)
+        DeliberativeAgent(agent_id=0, n_agents=1)
     ]
 
     # 3 - Evaluate agents
@@ -381,5 +413,8 @@ if __name__ == '__main__':
         agent_id += 1
 
     # 4 - Compare results
-    compare_results(results, title="Agents on 'Predator Prey' Environment", colors=["orange", "green"])
+    #compare_results(results, title="Agents on 'Predator Prey' Environment", colors=["orange", "green"])
+
+
+    
 
