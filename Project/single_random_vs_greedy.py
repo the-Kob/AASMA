@@ -108,6 +108,15 @@ class GreedyAgent(Agent):
         global_pos = np.array([global_column, global_row]) # 5, 8
  
         return global_pos
+    
+    def find_relative_index(self, agent_pos, object_global_position):
+        
+        # Test: Agent is [4 6] ; Object is [5 8] -> 23
+
+        distances = np.array(object_global_position) - np.array(agent_pos) # [5 8] - [4 6] = [1 2]
+        object_relative_position_index = 12 + distances[0] * 1 + distances[1] * 5 # 23
+ 
+        return object_relative_position_index
 
     def direction_to_go(self, agent_position, point_of_interes_pos, has_food):
         """
@@ -193,11 +202,16 @@ class GreedyAgent(Agent):
             else:
                 desire = FIND_FOODPILE
 
-            # IF SEES HIGH INTENSITY PHEROMONES, FOLLOWS THEM (maybe not)
+            # IF SEES HIGH INTENSITY PHEROMONES, FOLLOWS THEM (maybe not) -> Already accounted for in FIND_FOODPILE (when the ant can't find strong pheromones, it randomly explores
+            # but this should be different from normal exploring, where the ant is supposed to avoid exploiting other foodpiles)
 
         if(self.desire == FIND_FOODPILE):
             if(self.check_for_foodpiles_in_view(foodpiles_in_view)): # we have a foodpile in view...
                 action, closest_foodpile_pos = self.go_to_closest_foodpile(agent_position, foodpiles_in_view)
+
+                # We don't need to follow a trail anymore
+                self.following_trail = False
+                self.most_promising_pheromone_pos = None
                 
                 if(self.check_if_destination_reached(closest_foodpile_pos)):
                     action = COLLECT_FOOD
@@ -206,22 +220,16 @@ class GreedyAgent(Agent):
             else: # if we don't have a foodpile in view...
 
                 if(self.following_trail): # if we're already following a trail...
+                    if(not self.check_for_foodpiles_in_view(foodpiles_in_view)):
+                        action = self.examine_promising_pheromones(agent_position, pheromones_in_view)
 
-                    if(not self.check_if_destination_reached(agent_position, self.promising_pheromone_pos)): # if we haven't reach the promising pheromone...
-                        action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False) # keep at it!
-                    else:
-                        # Approach central pheromone, so we can see surrounding 4 tiles
-                        # Follow the trail back to the foodpile
-                        print("Follow pheromones")
-
-                if(self.check_for_intense_pheromones_in_view(pheromones_in_view)): # check for high intensity pheromones
+                elif (self.check_for_intense_pheromones_in_view(pheromones_in_view)): # check for high intensity pheromones
                     action, most_intense_pheromone_pos = self.go_to_most_intense_pheromone(agent_position, pheromones_in_view)
                     self.promising_pheromone_pos = most_intense_pheromone_pos
                     self.following_trail = True
-                else: # if we don't have high intensity pheromones in view...
-                    action = random.randint(0, 3) # we are changing desires but still need to pick an action!
-                    self.desire = EXPLORE
 
+                else: # if we don't have high intensity pheromones in view...
+                    action = self.explore_randomly() # we are changing desires but still need to pick an action! -> explore to find pheromones
 
         return action
     
@@ -278,6 +286,33 @@ class GreedyAgent(Agent):
 
         return self.direction_to_go(agent_position, most_intense_pheromone_pos, False), most_intense_pheromone
 
+    def examine_promising_pheromones(self, agent_position, pheromones_in_view):
+
+        distances = np.array(self.promising_pheromone_pos) - np.array(agent_position)
+        abs_distances = np.absolute(distances)
+
+        if(abs_distances[0] == 1 or abs_distances[1] == 1): # WHAT IF THE PHEROMONE IS RIGHT BESIDES THE AGENT?? INCREASE FOOD PHEROM MUCH MORE!!!
+            promising_pheromone_relative_index = self.find_relative_index(self.promising_pheromone_pos)
+
+            surrounding_pheromone_down = pheromones_in_view[promising_pheromone_relative_index + 5]
+            surrounding_pheromone_left = pheromones_in_view[promising_pheromone_relative_index - 1]
+            surrounding_pheromone_up = pheromones_in_view[promising_pheromone_relative_index - 5]
+            surrounding_pheromone_right = pheromones_in_view[promising_pheromone_relative_index + 1]
+
+            surrounding_pheromones = np.array([surrounding_pheromone_down, surrounding_pheromone_left, surrounding_pheromone_up, surrounding_pheromone_right])
+            action = np.argmax(surrounding_pheromones)
+
+            self.promising_pheromone_pos = self.find_global_pos(agent_position, surrounding_pheromones[action])
+
+            return action
+        
+        if abs_distances[0] > abs_distances[1]:
+            return self._close_horizontally(distances, False) 
+        elif abs_distances[0] < abs_distances[1]:
+            return self._close_vertically(distances, False)
+        else:
+            roll = random.uniform(0, 1)
+            return self._close_horizontally(distances, False) if roll > 0.5 else self._close_vertically(distances, False)
 
     # ############### #
     # Private Methods #

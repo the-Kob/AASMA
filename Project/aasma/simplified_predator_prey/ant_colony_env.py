@@ -366,7 +366,7 @@ class AntColonyEnv(gym.Env):
             for row in range(max(0, pos[0] - 2), min(pos[0] + 2 + 1, self._grid_shape[0])):
                 for col in range(max(0, pos[1] - 2), min(pos[1] + 2 + 1, self._grid_shape[1])):
                     if PRE_IDS['pheromone'] in self._full_obs[row][col]:
-                        _pheromone_pos[row - (pos[0] - 2), col - (pos[1] - 2)] = 1  # get relative position for the pheromone loc.
+                        _pheromone_pos[row - (pos[0] - 2), col - (pos[1] - 2)] = self.pheromones_in_grid[row][col]  # get relative position for the pheromone loc.
 
             # check if pheromones is in the view area
             _colonies_storage = np.zeros(self.n_colonies)  # colony
