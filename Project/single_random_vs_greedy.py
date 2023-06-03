@@ -304,7 +304,7 @@ class GreedyAgent(Agent):
             surrounding_pheromones = np.array([surrounding_pheromone_down, surrounding_pheromone_left, surrounding_pheromone_up, surrounding_pheromone_right])
             next_promising_pheromone = np.argmax(surrounding_pheromones)
 
-            if(next_promising_pheromone == None): # lost trail...
+            if(pheromones_in_view(surrounding_pheromones[next_promising_pheromone]) == 0): # lost trail... 
                 self.following_trail = False
                 action = STAY
                 return action
