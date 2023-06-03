@@ -291,7 +291,9 @@ class GreedyAgent(Agent):
         distances = np.array(self.promising_pheromone_pos) - np.array(agent_position)
         abs_distances = np.absolute(distances)
 
-        if(abs_distances[0] == 1 or abs_distances[1] == 1): # WHAT IF THE PHEROMONE IS RIGHT BESIDES THE AGENT?? INCREASE FOOD PHEROM MUCH MORE!!!
+        if(abs_distances[0] == 1 or abs_distances[1] == 1): # WHAT IF THE PHEROMONE IS RIGHT BESIDES THE AGENT?? INCREASE FOOD PHEROMONE MUCH MORE!!!
+
+            # THE AGENT MIGHT MISS RELEVANT HIGH INTENSITY PHEROMONES IF IT DOESN'T GO TO THE COLONY AND MERELY LOOKS AT IT (LINE 178)
             promising_pheromone_relative_index = self.find_relative_index(self.promising_pheromone_pos)
 
             surrounding_pheromone_down = pheromones_in_view[promising_pheromone_relative_index + 5]
@@ -300,19 +302,22 @@ class GreedyAgent(Agent):
             surrounding_pheromone_right = pheromones_in_view[promising_pheromone_relative_index + 1]
 
             surrounding_pheromones = np.array([surrounding_pheromone_down, surrounding_pheromone_left, surrounding_pheromone_up, surrounding_pheromone_right])
-            action = np.argmax(surrounding_pheromones)
+            next_promising_pheromone = np.argmax(surrounding_pheromones)
 
-            self.promising_pheromone_pos = self.find_global_pos(agent_position, surrounding_pheromones[action])
+            if(next_promising_pheromone == None): # lost trail...
+                self.following_trail = False
+                action = STAY
+                return action
+
+            # Move into the position of the current promising pheromone, and update the promising pheromone
+            action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
+            self.promising_pheromone_pos = self.find_global_pos(agent_position, surrounding_pheromones[next_promising_pheromone])
 
             return action
         
-        if abs_distances[0] > abs_distances[1]:
-            return self._close_horizontally(distances, False) 
-        elif abs_distances[0] < abs_distances[1]:
-            return self._close_vertically(distances, False)
         else:
-            roll = random.uniform(0, 1)
-            return self._close_horizontally(distances, False) if roll > 0.5 else self._close_vertically(distances, False)
+            action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
+            return action
 
     # ############### #
     # Private Methods #
