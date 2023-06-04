@@ -95,8 +95,9 @@ class DeliberativeAgent(Agent):
 
         action_to_perform = self.deliberative_architecture()
 
+
         if(action_to_perform != STAY and action_to_perform != COLLECT_FOOD and action_to_perform != COLLECT_FOOD):
-            self.avoid_obstacles(action_to_perform)
+            return self.avoid_obstacles(action_to_perform)
 
         return action_to_perform
     
@@ -180,7 +181,22 @@ class DeliberativeAgent(Agent):
         return action
 
     def avoid_obstacles(self, action):
-        return
+
+        foodpiles_in_view = self.beliefs[4:29]
+
+        if((action == 0 and foodpiles_in_view[12 + 5] != 0) or (action == 2 and foodpiles_in_view[12 - 5])): # foddpile is obstructing up/down
+            action = random.randrange(1, 4, 2) # gives odds (left or right)
+
+        elif((action == 1 and foodpiles_in_view[12 - 1] != 0) or (action == 3 and foodpiles_in_view[12 + 1])): # object is obstructing left/right
+            action = random.randrange(0, 3, 2) # gives evens (up or down)
+
+        elif((action == 5 and foodpiles_in_view[12 + 5] != 0) or (action == 7 and foodpiles_in_view[12 - 5])): # object is obstructing up_phero/down_phero
+            action = random.randrange(6, 9, 2) # gives odds (left phero or right phero)
+
+        elif(action == 6 or action == 8): # object is obstructing left_phero/right_phero
+            action = random.randrange(5, 8, 2) # gives evens (up phero or down phero)
+
+        return action
     
     # ################# #
     # Auxiliary Methods #
