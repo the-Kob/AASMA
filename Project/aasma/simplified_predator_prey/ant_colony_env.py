@@ -151,10 +151,10 @@ class AntColonyEnv(gym.Env):
         self.has_food = {_: False for _ in range(self.n_agents)}
 
         # Concatenate observed environment to features
-        observed_environment = np.array(self.get_agent_obs())[0]
-        full_information = np.concatenate((self.simplified_features(), observed_environment))
+        observed_environment = self.get_agent_obs() # 52 for each agent
+        features = self.simplified_features() # 2 for each agent + 2 for each colony
 
-        separated_full_information = self.format_outgoing_observations(full_information)
+        separated_full_information = self.format_outgoing_observations(features, observed_environment)
 
         return separated_full_information
 
@@ -244,41 +244,38 @@ class AntColonyEnv(gym.Env):
         for i in range(self.n_agents):
             self._total_episode_reward[i] += rewards[i]
 
-        observed_environment = np.array(self.get_agent_obs())[0]
-        full_information = np.concatenate((self.simplified_features(), observed_environment))
-
         if (False not in self.foodpile_depleted): self.foodpiles_done = True
+
+        observed_environment = self.get_agent_obs() # 52 for each agent
+        features = self.simplified_features() # 2 for each agent + 2 for each colony
+
+        separated_full_information = self.format_outgoing_observations(features, observed_environment)
 
         # [agent_pos colony_pos 25*foodpiles 25*pheromones colony_capacity has_food]
 
-        separated_full_information = self.format_outgoing_observations(full_information)
-
         return separated_full_information, rewards, self._agent_dones, {'foodpiles_done': self.foodpiles_done}
 
-    def format_outgoing_observations(self, full_information):
+    def format_outgoing_observations(self, features, observed_environment):
 
         # Format the outgoing observations so they are separated by agent
-        agents_positions = full_information[:self.n_agents * 2]
-        colonies_positions = full_information[2 * self.n_agents : 2 * self.n_agents + 2 * self.n_colonies]
+        agents_positions = features[:self.n_agents * 2] # 2 * n_agents
+        colonies_positions = features[-2 : ] # 1 COLONY
 
-        foodpiles_in_view = full_information[2 * self.n_agents + 2 : 2 * self.n_agents + 27 * self.n_agents]
-        pheromones_in_view = full_information[2 * self.n_agents + 27 * self.n_agents : 2 * self.n_agents + 52 * self.n_agents]
+        #separated_full_information = np.zeros(len(full_information)).reshape(self.n_agents, 2 + 2 + 25 + 25 + 1 + 1 )
 
-        colony_storage = full_information[2 * self.n_agents + 52 * self.n_agents : -1 * self.n_agents]
-        has_food = full_information[-1 * self.n_agents:]
-
-        separated_full_information = np.zeros(len(full_information)).reshape(self.n_agents, 2 + 2 + 25 + 25 + 1 + 1 )
+        separated_full_information = np.array([])
 
         for agent_id in range(self.n_agents):
 
             # Get corresponding information in previous arrays
             true_agent_id = agent_id * 2
-            agent_position = agents_positions[true_agent_id:true_agent_id + 2]
-            colony_position = colonies_positions[true_agent_id:true_agent_id + 2]
-            foodpiles_in_view_for_agent_i = foodpiles_in_view[agent_id * 25 : agent_id * 25 + 25]
-            pheromones_in_view_for_agent_i = pheromones_in_view[agent_id * 25 : agent_id * 25 + 25]
-            colony_storage_in_view = colony_storage
-            has_food_agent_i = [has_food[agent_id]]
+            agent_position = agents_positions[true_agent_id:true_agent_id + 2] # 2
+            colony_position = colonies_positions # 1 COLONY
+
+            foodpiles_in_view_for_agent_i = observed_environment[agent_id][ : 25] # 25
+            pheromones_in_view_for_agent_i = observed_environment[agent_id][25 : 50] # 25
+            colony_storage_in_view = observed_environment[agent_id][-2:-1] # 1
+            has_food_agent_i = observed_environment[agent_id][-1:] # 1
 
             # Concatenate information and add it to proper place 
             p1 = np.concatenate((agent_position, colony_position))
@@ -287,7 +284,10 @@ class AntColonyEnv(gym.Env):
             p4 = np.concatenate((p3, colony_storage_in_view))
             agent_i_full_information = np.concatenate((p4, has_food_agent_i))
 
-            separated_full_information[agent_id] = agent_i_full_information
+            if separated_full_information.size == 0:
+                separated_full_information = np.array([agent_i_full_information])
+            else:
+                separated_full_information = np.append(separated_full_information, [agent_i_full_information], axis=0)
 
         # separated_full_information[agent_1] = [agent_pos colony_pos 25*foodpiles 25*pheromones colony_capacity has_food]
         # separated_full_information[agent_id] = [separated_full_information[agent_1] separated_full_information[agent_2] ...]
@@ -318,7 +318,7 @@ class AntColonyEnv(gym.Env):
             while True:
                 pos = [self.np_random.randint(0, self._grid_shape[0] - 1),
                        self.np_random.randint(0, self._grid_shape[1] - 1)]
-                if self._is_cell_walkable(pos):
+                if self._is_cell_spawnable(pos):
                     self.agent_pos[agent_i] = pos
                     break
             self.__update_agent_view(agent_i)
@@ -389,7 +389,8 @@ class AntColonyEnv(gym.Env):
         if self.full_observable:
             _obs = np.array(_obs).flatten().tolist()
             _obs = [_obs for _ in range(self.n_agents)]
-        return _obs
+
+        return _obs # [[_agent_1_obs] [_agent_2_obs] ...]
 
     def __wall_exists(self, pos):
         row, col = pos
@@ -397,12 +398,15 @@ class AntColonyEnv(gym.Env):
 
     def is_valid(self, pos):
         return (0 <= pos[0] < self._grid_shape[0]) and (0 <= pos[1] < self._grid_shape[1])
+    
+    def _is_cell_spawnable(self, pos):
+        return self.is_valid(pos) and (self._full_obs[pos[0]][pos[1]] == PRE_IDS['empty'])
 
     def _is_cell_walkable(self, pos):
-        return self.is_valid(pos) and ((self._full_obs[pos[0]][pos[1]] == PRE_IDS['empty']) or (self._full_obs[pos[0]][pos[1]] == PRE_IDS['pheromone']))
+        return self.is_valid(pos) and ((self._full_obs[pos[0]][pos[1]] == PRE_IDS['empty']) or ('I' in self._full_obs[pos[0]][pos[1]]))
     
     def _is_cell_obstacle(self, pos):
-        return self.is_valid(pos) and (('C' in self._full_obs[pos[0]][pos[1]]) or ('F' in self._full_obs[pos[0]][pos[1]]))
+        return self.is_valid(pos) and (('C' in self._full_obs[pos[0]][pos[1]]) or ('F' in self._full_obs[pos[0]][pos[1]]) or ('A' in self._full_obs[pos[0]][pos[1]]))
     
     def _is_cell_vacant(self, pos):
         return self.is_valid(pos) and (self._full_obs[pos[0]][pos[1]] == PRE_IDS['empty'])

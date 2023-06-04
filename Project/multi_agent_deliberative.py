@@ -5,10 +5,11 @@ from typing import Sequence
 
 from aasma import Agent
 from aasma.utils import compare_results
-from aasma.simplified_predator_prey import SimplifiedPredatorPrey
+from aasma.simplified_predator_prey import AntColonyEnv
 
-from single_random_agent import RandomAgent
-from single_random_vs_greedy import GreedyAgent
+from single_deliberative_agent import DeliberativeAgent
+
+# from SOMEWHERE import ReactiveAgent REPLACE!!!
 
 
 def run_multi_agent(environment: Env, agents: Sequence[Agent], n_episodes: int) -> np.ndarray:
@@ -30,6 +31,7 @@ def run_multi_agent(environment: Env, agents: Sequence[Agent], n_episodes: int) 
                 actions[i] = agents[i].action()
             
             next_observations, rewards, terminals, info = environment.step(actions)
+            environment.render() # ENABLE/DISABLE THIS
             observations = next_observations
 
         results[episode] = steps
@@ -43,35 +45,35 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--episodes", type=int, default=100)
+    parser.add_argument("--episodes", type=int, default=1) # CHANGE THIS
     opt = parser.parse_args()
 
     # 1 - Setup the environment
-    environment = SimplifiedPredatorPrey(grid_shape=(7, 7), n_agents=4, n_preys=1, max_steps=100)
+    environment = AntColonyEnv(grid_shape=(40, 40), n_agents=4, max_steps=100, n_foodpiles=5)
 
     # 2 - Setup the teams
     teams = {
 
-        "Random Team": [
-            RandomAgent(environment.action_space[0].n),
-            RandomAgent(environment.action_space[1].n),
-            RandomAgent(environment.action_space[2].n),
-            RandomAgent(environment.action_space[3].n),
+        "Deliberative Team": [
+            DeliberativeAgent(agent_id=0, n_agents=4),
+            DeliberativeAgent(agent_id=1, n_agents=4),
+            DeliberativeAgent(agent_id=2, n_agents=4),
+            DeliberativeAgent(agent_id=3, n_agents=4),
         ],
 
-        "Greedy Team": [
-            GreedyAgent(agent_id=0, n_agents=4),
-            GreedyAgent(agent_id=1, n_agents=4),
-            GreedyAgent(agent_id=2, n_agents=4),
-            GreedyAgent(agent_id=3, n_agents=4)
-        ],
+        #"Reactive Team": [
+        #    ReactiveAgent(agent_id=0, n_agents=4),
+        #    ReactiveAgent(agent_id=1, n_agents=4),
+        #    ReactiveAgent(agent_id=2, n_agents=4),
+        #    ReactiveAgent(agent_id=3, n_agents=4)
+        #],
 
-        "1 Greedy + 3 Random": [
-            GreedyAgent(agent_id=0, n_agents=4),
-            RandomAgent(environment.action_space[1].n),
-            RandomAgent(environment.action_space[2].n),
-            RandomAgent(environment.action_space[3].n)
-        ]
+        #"1 Deliberative + 3 Reactive": [
+        #    DeliberativeAgent(agent_id=0, n_agents=4),
+        #    ReactiveAgent(environment.action_space[1].n),
+        #    ReactiveAgent(environment.action_space[2].n),
+        #    ReactiveAgent(environment.action_space[3].n)
+        #]
     }
 
     # 3 - Evaluate teams
@@ -83,7 +85,7 @@ if __name__ == '__main__':
     # 4 - Compare results
     compare_results(
         results,
-        title="Teams Comparison on 'Predator Prey' Environment",
+        title="Teams Comparison on 'Ant Colony' Environment",
         colors=["orange", "green", "blue"]
     )
 

@@ -11,8 +11,6 @@ from aasma.utils import compare_results
 from aasma.wrappers import SingleAgentWrapper
 from aasma.simplified_predator_prey import AntColonyEnv
 
-#from single_random_agent import run_single_agent, RandomAgent
-
 N_ACTIONS = 11
 DOWN, LEFT, UP, RIGHT, STAY, DOWN_PHERO, LEFT_PHERO, UP_PHERO, RIGHT_PHERO, COLLECT_FOOD, DROP_FOOD = range(N_ACTIONS)
 
@@ -47,6 +45,7 @@ def run_single_agent(environment: Env, agent: Agent, n_episodes: int, agent_id: 
             time.sleep(opt.render_sleep_time)
             observation = next_observation
 
+            DeliberativeAgent.express_desire(agent)
             print(f"\tAction: {environment.get_action_meanings()[action]}\n")
             print(f"\tObservation: {observation}")
 
@@ -82,23 +81,24 @@ class DeliberativeAgent(Agent):
         # MAKE OBSERVATIONS DEPENDENT ON VIEWMASK
         # MAKE THINGS DEPENDET ON INITIAL INTENSITY PHEROMONE LEVEL
         # ONLY WORKS FOR A SINGLE COLONY
+        # INCREASE FOOD PHEROMONE MORE, TO BE SAFE
+        # IN examine_promising_pheromones, WE ARE MERELY USING DISTANCE AND NOT PHEROMONE INTENSITY LEVELS... HOW DO WE CHANGE THIS?
+
+        # SOLVED
+        # THE AGENT MIGHT MISS RELEVANT HIGH INTENSITY PHEROMONES IF IT DOESN'T GO TO THE COLONY AND MERELY LOOKS AT IT (LINE 189)
         # IN EXPLORE, SHOULD WE ADD A "IF SEES HIGH INTENSITY PHEROMONES, FOLLOWS THEM" (maybe not) -> Already accounted for in FIND_FOODPILE
         #   (when the ant can't find strong pheromones, it randomly explores but this should be different from normal exploring, 
         #   where the ant is supposed to avoid exploiting other foodpiles)
-        # INCREASE FOOD PHEROMONE MORE, TO BE SAFE
-        # THE AGENT MIGHT MISS RELEVANT HIGH INTENSITY PHEROMONES IF IT DOESN'T GO TO THE COLONY AND MERELY LOOKS AT IT (LINE 189) - SOLVED
-        # IN examine_promising_pheromones, WE ARE MERELY USING DISTANCE AND NOT PHEROMONE INTENSITY LEVELS... HOW DO WE CHANGE THIS?
 
-        if(self.desire == None):
-            print("\tDesire: None")
-        else:
-            print(f"\tDesire: {DESIRE_MEANING[self.desire]}")
         action_to_perform = self.deliberative_architecture()
 
         return action_to_perform
     
     def express_desire(self):
-        print(f"\tDesire: {DESIRE_MEANING[self.desire]}")
+        if(self.desire == None):
+            print("\tDesire: None")
+        else:
+            print(f"\tDesire: {DESIRE_MEANING[self.desire]}")
 
     def deliberative_architecture(self):
 
@@ -142,10 +142,6 @@ class DeliberativeAgent(Agent):
                 action = self.explore_randomly()
             elif(self.check_for_foodpiles_in_view(foodpiles_in_view) or (colony_storage > 0 and colony_storage < 50)):
                 self.desire = FIND_FOODPILE
-
-        # IN EXPLORE, SHOULD WE ADD A "IF SEES HIGH INTENSITY PHEROMONES, FOLLOWS THEM" (maybe not) -> Already accounted for in FIND_FOODPILE
-        #   (when the ant can't find strong pheromones, it randomly explores but this should be different from normal exploring, 
-        #   where the ant is supposed to avoid exploiting other foodpiles)
 
         if(self.desire == FIND_FOODPILE):
             if(self.check_for_foodpiles_in_view(foodpiles_in_view)): # we have a foodpile in view...
@@ -334,7 +330,7 @@ class DeliberativeAgent(Agent):
         distances = np.array(self.promising_pheromone_pos) - np.array(agent_position)
         abs_distances = np.absolute(distances)
 
-        if(abs_distances[0] == 1 or abs_distances[1] == 1):
+        if(abs_distances[0] + abs_distances[1] == 1 or (abs_distances[0] == 1 and abs_distances[1] == 1)):
             promising_pheromone_relative_index = self.find_relative_index(agent_position, self.promising_pheromone_pos)
 
             surrounding_pheromone_down = pheromones_in_view[promising_pheromone_relative_index + 5]
@@ -419,13 +415,12 @@ if __name__ == '__main__':
         grid_shape=(10, 10),
         n_agents=1, 
         max_steps=100,
-        n_foodpiles=5
+        n_foodpiles=3
     )
     environment = SingleAgentWrapper(environment, agent_id=0)
 
     # 2 - Setup agents
     agents = [
-        #RandomAgent(environment.action_space.n),
         DeliberativeAgent(agent_id=0, n_agents=1)
     ]
 
