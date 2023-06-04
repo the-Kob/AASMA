@@ -1,4 +1,5 @@
 import argparse
+import time
 import numpy as np
 from gym import Env
 from typing import Sequence
@@ -32,6 +33,7 @@ def run_multi_agent(environment: Env, agents: Sequence[Agent], n_episodes: int) 
             
             next_observations, rewards, terminals, info = environment.step(actions)
             environment.render() # ENABLE/DISABLE THIS
+            time.sleep(opt.render_sleep_time)
             observations = next_observations
 
         results[episode] = steps
@@ -45,11 +47,12 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--episodes", type=int, default=1) # CHANGE THIS
+    parser.add_argument("--episodes", type=int, default=1) # CHANGE THIS (n_episodes)
+    parser.add_argument("--render-sleep-time", type=float, default=0.1)
     opt = parser.parse_args()
 
     # 1 - Setup the environment
-    environment = AntColonyEnv(grid_shape=(40, 40), n_agents=4, max_steps=100, n_foodpiles=5)
+    environment = AntColonyEnv(grid_shape=(25, 25), n_agents=4, max_steps=200, n_foodpiles=5)
 
     # 2 - Setup the teams
     teams = {

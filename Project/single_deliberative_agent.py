@@ -68,6 +68,7 @@ class DeliberativeAgent(Agent):
         self.agent_id = agent_id
         self.n_agents = n_agents
         self.n_actions = N_ACTIONS
+        self.beliefs = None
         self.desire = None
         self.steps_exploring = 0
         self.current_exploring_action = STAY
@@ -81,16 +82,21 @@ class DeliberativeAgent(Agent):
         # MAKE OBSERVATIONS DEPENDENT ON VIEWMASK
         # MAKE THINGS DEPENDET ON INITIAL INTENSITY PHEROMONE LEVEL
         # ONLY WORKS FOR A SINGLE COLONY
-        # INCREASE FOOD PHEROMONE MORE, TO BE SAFE
-        # IN examine_promising_pheromones, WE ARE MERELY USING DISTANCE AND NOT PHEROMONE INTENSITY LEVELS... HOW DO WE CHANGE THIS?
+        # IN examine_promising_pheromones, WE ARE MERELY USING DISTANCE AND NOT PHEROMONE INTENSITY LEVELS... HOW DO WE CHANGE THIS? Argmin now that we only use food pheromones?
+        # REMOVE COLONY POSITION
+        # AVOID OBSTACLES IN AGENT INSTEAD OF IN ENV (momentarily turned this off)
 
         # SOLVED
         # THE AGENT MIGHT MISS RELEVANT HIGH INTENSITY PHEROMONES IF IT DOESN'T GO TO THE COLONY AND MERELY LOOKS AT IT (LINE 189)
         # IN EXPLORE, SHOULD WE ADD A "IF SEES HIGH INTENSITY PHEROMONES, FOLLOWS THEM" (maybe not) -> Already accounted for in FIND_FOODPILE
         #   (when the ant can't find strong pheromones, it randomly explores but this should be different from normal exploring, 
         #   where the ant is supposed to avoid exploiting other foodpiles)
+        # INCREASE FOOD PHEROMONE MORE (now there only is food pheromone)
 
         action_to_perform = self.deliberative_architecture()
+
+        if(action_to_perform != STAY and action_to_perform != COLLECT_FOOD and action_to_perform != COLLECT_FOOD):
+            self.avoid_obstacles(action_to_perform)
 
         return action_to_perform
     
@@ -103,16 +109,16 @@ class DeliberativeAgent(Agent):
     def deliberative_architecture(self):
 
         # BELIEFS
-        beliefs = self.observation
+        self.beliefs = self.observation
 
-        agent_position = beliefs[:2]
-        colony_position = beliefs[2:4] # FOR ONLY 1 COLONY
+        agent_position = self.beliefs[:2]
+        colony_position = self.beliefs[2:4] # FOR ONLY 1 COLONY
 
-        foodpiles_in_view = beliefs[4:29]
-        pheromones_in_view = beliefs[29:54]
+        foodpiles_in_view = self.beliefs[4:29]
+        pheromones_in_view = self.beliefs[29:54]
 
-        colony_storage = beliefs[-2] # FOR ONLY 1 COLONY
-        has_food = beliefs[-1]
+        colony_storage = self.beliefs[-2] # FOR ONLY 1 COLONY
+        has_food = self.beliefs[-1]
 
         # DESIRES
         if(self.desire == None):
@@ -144,12 +150,13 @@ class DeliberativeAgent(Agent):
                 self.desire = FIND_FOODPILE
 
         if(self.desire == FIND_FOODPILE):
-            if(self.check_for_foodpiles_in_view(foodpiles_in_view)): # we have a foodpile in view...
+
+            if(self.check_for_foodpiles_in_view(foodpiles_in_view)):  # we have a foodpile in view...
                 action, closest_foodpile_pos = self.go_to_closest_foodpile(agent_position, foodpiles_in_view)
 
                 # We don't need to follow a trail anymore
                 self.following_trail = False
-                self.most_promising_pheromone_pos = None
+                self.promising_pheromone_pos = None
                 
                 if(self.check_if_destination_reached(agent_position, closest_foodpile_pos)):
                     action = COLLECT_FOOD
@@ -158,11 +165,12 @@ class DeliberativeAgent(Agent):
             else: # if we don't have a foodpile in view...
 
                 if(self.following_trail): # if we're already following a trail... # NOT WORKING VERY WELL 
-                    print("here")
                     action = self.examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
 
                 elif(self.check_for_intense_pheromones_in_view(pheromones_in_view)): # check for high intensity pheromones
+
                     self.promising_pheromone_pos = self.identify_most_intense_pheromone(agent_position, pheromones_in_view)
+
                     action = self.examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
                     self.following_trail = True
 
@@ -171,6 +179,9 @@ class DeliberativeAgent(Agent):
 
         return action
 
+    def avoid_obstacles(self, action):
+        return
+    
     # ################# #
     # Auxiliary Methods #
     # ################# #
@@ -183,19 +194,19 @@ class DeliberativeAgent(Agent):
         # Calculate relative row and global row
         if(object_relative_position_index <= 4):
             relative_row = 0 
-            global_row = agent_pos[1] + 2
+            global_row = agent_pos[1] - 2
         elif(object_relative_position_index > 4 and object_relative_position_index <= 9):
             relative_row = 1 
-            global_row = agent_pos[1] + 1
+            global_row = agent_pos[1] - 1
         elif(object_relative_position_index > 9 and object_relative_position_index <= 14):
              relative_row = 2
-             global_row = agent_pos[1] + 0
+             global_row = agent_pos[1]
         elif(object_relative_position_index > 14 and object_relative_position_index <= 19):
             relative_row = 3
-            global_row = agent_pos[1] - 1
+            global_row = agent_pos[1] + 1
         elif(object_relative_position_index > 19 and object_relative_position_index <= 24):
             relative_row = 4
-            global_row = agent_pos[1] - 2
+            global_row = agent_pos[1] + 2
         # row = 8 -> Correct, relative row is 4
 
         # Calculate relative column and global column
@@ -248,22 +259,39 @@ class DeliberativeAgent(Agent):
                 closest_poi_position =  poi_position
         return closest_poi_position
     
-    def farthest_point_of_interest(self, colony_position, points_of_interest):
+    def farthest_pheromone_of_interest(self, colony_position, agent_position, promising_pheromone_relative_index, pheromones_in_view):
         """
         Given the positions of a colony and a sequence of positions of points of interest,
         returns the positions of the point of interest (poi).
-        """
+        """ 
 
+        # Find the global positions of the surrounding pheromones
+        surrounding_pheromone_down_pos = self.find_global_pos(agent_position, promising_pheromone_relative_index + 5)
+        surrounding_pheromone_left_pos = self.find_global_pos(agent_position, promising_pheromone_relative_index - 1)
+        surrounding_pheromone_up_pos = self.find_global_pos(agent_position, promising_pheromone_relative_index - 5)
+        surrounding_pheromone_right_pos = self.find_global_pos(agent_position, promising_pheromone_relative_index + 1)
+
+        indices = np.array([promising_pheromone_relative_index + 5, promising_pheromone_relative_index - 1, promising_pheromone_relative_index - 5, promising_pheromone_relative_index + 1])
+
+        pos1 = np.concatenate((surrounding_pheromone_down_pos, surrounding_pheromone_left_pos))
+        pos2 = np.concatenate((pos1, surrounding_pheromone_up_pos))
+        surrounding_pheromones_pos = np.concatenate((pos2, surrounding_pheromone_right_pos))
+
+        # Find the pheromone most distant from the colony while ensuring it has some high level of intensity
         max_dist = 0
         farthest_poi_position = None
-        n_poi = int(len(points_of_interest) / 2)
+        n_poi = int(len(surrounding_pheromones_pos) / 2)
         for poi_i in range(n_poi):
-            poi_position = points_of_interest[poi_i * 2], points_of_interest[(poi_i * 2) + 1]
+            poi_position = surrounding_pheromones_pos[poi_i * 2], surrounding_pheromones_pos[(poi_i * 2) + 1]
             distance = cityblock(colony_position,  poi_position)
-            if distance > max_dist:
+            if distance > max_dist and pheromones_in_view[indices[poi_i]] > 10: # ARBITRARY VALUE
                 max_dist = distance
                 farthest_poi_position =  poi_position
-        return farthest_poi_position
+
+        if(max_dist == 0): 
+            return None
+        else:
+            return farthest_poi_position
 
     def check_if_destination_reached(self, agent_position, point_of_interest_pos):
         distances = np.array(point_of_interest_pos) - np.array(agent_position)
@@ -280,10 +308,10 @@ class DeliberativeAgent(Agent):
         if(self.steps_exploring == 0): # hasn't been exploring -> choose direction and keep it for 5 steps (arbitrary amount)
             self.current_exploring_action = random.randint(0, 3)
 
-        elif(self.steps_exploring >= 5): # has explored enough in one direction -> choose another which isn't the opposite
+        elif(self.steps_exploring >= 5): # has explored enough in one direction -> choose another which isn't the opposite and isn't the same (better behavior)
                 
             new_exploring_action = random.randint(0, 3)
-            while(new_exploring_action == self.current_exploring_action + 2 or new_exploring_action == self.current_exploring_action - 2):
+            while(new_exploring_action == self.current_exploring_action + 2 or new_exploring_action == self.current_exploring_action - 2 or new_exploring_action == self.current_exploring_action):
                 new_exploring_action = random.randint(0, 3)
             
             self.current_exploring_action = new_exploring_action
@@ -306,6 +334,7 @@ class DeliberativeAgent(Agent):
 
         # Get corresponding positions in array format
         foodpiles_positions = np.zeros(len(foodpiles_indices) * 2)
+
 
         for foodpile_i in range(len(foodpiles_indices)): 
             foodpile_i_pos = self.find_global_pos(agent_position, foodpiles_indices[foodpile_i])
@@ -343,6 +372,8 @@ class DeliberativeAgent(Agent):
 
             if(surrounding_pheromones[next_promising_pheromone] == 0): # lost trail... 
                 self.following_trail = False
+                self.promising_pheromone_pos = None
+                self.desire = EXPLORE
                 action = self.explore_randomly()
                 return action
 
@@ -352,18 +383,15 @@ class DeliberativeAgent(Agent):
             #self.promising_pheromone_pos = self.find_global_pos(agent_position, surrounding_pheromones[next_promising_pheromone])
 
     # This option utilizes distance from colony (we keep maximizing it)
-            surrounding_pheromone_down_pos = self.find_global_pos(agent_position, promising_pheromone_relative_index + 5)
-            surrounding_pheromone_left_pos = self.find_global_pos(agent_position, promising_pheromone_relative_index - 1)
-            surrounding_pheromone_up_pos = self.find_global_pos(agent_position, promising_pheromone_relative_index - 5)
-            surrounding_pheromone_right_pos = self.find_global_pos(agent_position, promising_pheromone_relative_index + 1)
+            self.promising_pheromone_pos = self.farthest_pheromone_of_interest(colony_position, agent_position, promising_pheromone_relative_index, pheromones_in_view)
 
-            pos1 = np.concatenate((surrounding_pheromone_down_pos, surrounding_pheromone_left_pos))
-            pos2 = np.concatenate((pos1, surrounding_pheromone_up_pos))
-            surrounding_pheromones_pos = np.concatenate((pos2, surrounding_pheromone_right_pos))
+            if(self.promising_pheromone_pos == None): # lost trail... 
+                self.following_trail = False
+                self.desire = EXPLORE
+                action = self.explore_randomly()
+                return action
 
-            self.promising_pheromone_pos = self.farthest_point_of_interest(colony_position, surrounding_pheromones_pos)
             action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
-
             return action
         
         else:

@@ -24,9 +24,9 @@ class AntColonyEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array']}
 
     def __init__(self, grid_shape=(5, 5), n_agents=2, full_observable=False, penalty=-0.5, step_cost=-0.01, max_steps=100,
-                 n_foodpiles=3, foodpile_capture_reward=5, initial_foodpile_capacity=3, foodpile_capacity_decrement=20,
+                 n_foodpiles=3, foodpile_capture_reward=5, initial_foodpile_capacity=8, foodpile_capacity_decrement=2,
                  n_colonies=1, initial_colonies_storage=100, colonies_storage_decrement=1, colonies_storage_increment=20, colonies_deposit_reward=10,
-                 initial_pheromone_intensity=5, pheromone_evaporation_rate=1):
+                 initial_pheromone_intensity=5, food_pheromone_intensity=50, pheromone_evaporation_rate=1):
         
         self._grid_shape = grid_shape
         self.n_agents = n_agents
@@ -41,7 +41,7 @@ class AntColonyEnv(gym.Env):
         self.foodpile_depleted = None
         self.foodpile_pos = {_: None for _ in range(self.n_foodpiles)}
         self.initial_foodpile_capacity = initial_foodpile_capacity
-        self.foodpile_capacity = {_: self.initial_foodpile_capacity for _ in range(self.n_foodpiles)}
+        self.foodpile_capacity = {_: random.randrange(4, self.initial_foodpile_capacity, 2) for _ in range(self.n_foodpiles)}
         self.foodpile_capture_reward = foodpile_capture_reward
         self.foodpiles_done = False
         self.foodpile_capacity_decrement = foodpile_capacity_decrement
@@ -61,7 +61,7 @@ class AntColonyEnv(gym.Env):
         # Pheromones
         self.pheromones_in_grid = [[0 for _ in range(self._grid_shape[0])] for row in range(self._grid_shape[1])] # keep pheromone level for each grid cell
         self.initial_pheromone_intensity = initial_pheromone_intensity
-        self.food_pheromone_intensity = initial_pheromone_intensity * 4
+        self.food_pheromone_intensity = food_pheromone_intensity
         self.pheromone_evaporation_rate = pheromone_evaporation_rate
         self.n_pheromone = 0
 
@@ -137,7 +137,7 @@ class AntColonyEnv(gym.Env):
         self._agent_dones = [False for _ in range(self.n_agents)]
         
         # Reset foodpiles
-        self.foodpile_capacity = {_: self.initial_foodpile_capacity for _ in range(self.n_foodpiles)} # added this 
+        self.foodpile_capacity = {_: random.randrange(4, self.initial_foodpile_capacity, 2) for _ in range(self.n_foodpiles)} # added this 
         self.foodpile_depleted = [False for _ in range(self.n_foodpiles)] # added this
         self.foodpiles_done = False
 
@@ -236,8 +236,8 @@ class AntColonyEnv(gym.Env):
             if(self.colonies_storage[colony_i] > 1):
                 self.colonies_storage[colony_i] -= self.colonies_storage_decrement # We consider 1 to be the lowest food capacity possible (so 0 can mean ants can't see the colony)
 
-        # If every foodpile has been depleted, we should also stop
-        if (self._step_count >= self._max_steps) or (False not in self.foodpile_depleted):
+        # If we have raeched max steps, if every foodpile has been depleted (and the agents are not holding food), if a colony reaches min capacity, we should also stop
+        if (self._step_count >= self._max_steps) or (False not in self.foodpile_depleted and True not in self.has_food) or (1 in self.colonies_storage):
             for i in range(self.n_agents):
                 self._agent_dones[i] = True
 
@@ -403,7 +403,7 @@ class AntColonyEnv(gym.Env):
         return self.is_valid(pos) and (self._full_obs[pos[0]][pos[1]] == PRE_IDS['empty'])
 
     def _is_cell_walkable(self, pos):
-        return self.is_valid(pos) and ((self._full_obs[pos[0]][pos[1]] == PRE_IDS['empty']) or ('I' in self._full_obs[pos[0]][pos[1]]))
+        return self.is_valid(pos) and ((self._full_obs[pos[0]][pos[1]] == PRE_IDS['empty']) or (self._full_obs[pos[0]][pos[1]] == PRE_IDS['pheromone']))
     
     def _is_cell_obstacle(self, pos):
         return self.is_valid(pos) and (('C' in self._full_obs[pos[0]][pos[1]]) or ('F' in self._full_obs[pos[0]][pos[1]]) or ('A' in self._full_obs[pos[0]][pos[1]]))
@@ -448,7 +448,7 @@ class AntColonyEnv(gym.Env):
         # Increment colony storage is done in step
         # Has food is changed to false in step
 
-        move, next_pos = self.__avoid_obstacles(move, curr_pos, next_pos)
+        #move, next_pos = self.__avoid_obstacles(move, curr_pos, next_pos)
 
         if next_pos is not None and self._is_cell_walkable(next_pos):
             self.agent_pos[agent_i] = next_pos
@@ -456,13 +456,14 @@ class AntColonyEnv(gym.Env):
             if(move != 9 and move != 10): # movement happens
                 
                 # Add pheromones to last location
-                self._full_obs[curr_pos[0]][curr_pos[1]] = PRE_IDS['pheromone'] # now the last position is going to have the pheromone tag instead of empty
+                self._full_obs[curr_pos[0]][curr_pos[1]] = PRE_IDS['empty'] # now the last position is going to have the pheromone tag instead of empty
 
                 if(move == 5 or move == 6 or move == 7 or move == 8):
+                    self._full_obs[curr_pos[0]][curr_pos[1]] = PRE_IDS['pheromone']
                     self.pheromones_in_grid[curr_pos[0]][curr_pos[1]] += self.food_pheromone_intensity # currently stacks pheromones
 
-                elif(move == 0 or move == 1 or move == 2 or move == 3):
-                    self.pheromones_in_grid[curr_pos[0]][curr_pos[1]] += self.initial_pheromone_intensity # currently stacks pheromones
+                #if(move == 0 or move == 1 or move == 2 or move == 3):
+                #    self.pheromones_in_grid[curr_pos[0]][curr_pos[1]] += self.initial_pheromone_intensity # currently stacks pheromones
 
         self.__update_agent_view(agent_i) # this should always happen to prevent pheromone + NOOP => empy cell with agent in there ;(
 
