@@ -58,13 +58,13 @@ class ReactiveAgent(Agent):
 
     def action(self) -> int:
         agent_position = self.observation[ : 2]
-        colony_position = self.observation[2 : 2 + 2] # FOR ONLY 1 COLONY
+        colony_position = self.observation[2 : 4] # FOR ONLY 1 COLONY
 
-        foodpiles_in_view = self.observation[2 + 2 : 2 + 27]
-        pheromones_in_view = self.observation[2 + 27 : 2 + 52]
+        foodpiles_in_view = self.observation[4: 29]
+        pheromones_in_view = self.observation[29 : 54]
 
-        colony_storage = self.observation[-2]
-        has_food = self.observation[-1]
+        colony_storage = self.observation[54]
+        has_food = self.observation[55]
 
         if(has_food):
             if(self.check_if_destination_reached(agent_position, colony_position)):
