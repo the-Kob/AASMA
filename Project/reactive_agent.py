@@ -1,15 +1,51 @@
 import math
 import random
+import time
 import argparse
 import numpy as np
 from scipy.spatial.distance import cityblock
+from gym import Env
 
 from aasma import Agent
 from aasma.utils import compare_results
 from aasma.wrappers import SingleAgentWrapper
+from aasma.simplified_predator_prey import AntColonyEnv
 
 N_ACTIONS = 11
 DOWN, LEFT, UP, RIGHT, STAY, DOWN_PHERO, LEFT_PHERO, UP_PHERO, RIGHT_PHERO, COLLECT_FOOD, DROP_FOOD = range(N_ACTIONS)
+
+def run_single_agent(environment: Env, agent: Agent, n_episodes: int, agent_id: int) -> np.ndarray:
+
+    results = np.zeros(n_episodes)
+
+    for episode in range(n_episodes):
+
+        print(f"Episode {episode}")
+
+        steps = 0
+        terminal = False
+        observation = environment.reset()
+        
+        while not terminal:
+            steps += 1
+            print(f"Timestep {steps}")
+            agent.see(observation)
+            action = agent.action()
+            next_observation, reward, terminal, info = environment.step(action)
+            environment.render()
+            time.sleep(opt.render_sleep_time)
+            observation = next_observation
+
+            DeliberativeAgent.express_desire(agent)
+            print(f"\tAction: {environment.get_action_meanings()[action]}\n")
+            print(f"\tObservation: {observation}")
+
+        
+        environment.close()
+        results[episode] = steps
+
+    return results
+
 
 class ReactiveAgent(Agent):
     def __init__(self, agent_id, n_agents):
@@ -18,9 +54,9 @@ class ReactiveAgent(Agent):
         self.n_agents = n_agents
         self.n_actions = N_ACTIONS
         self.following_trail = False
+        self.promising_pheromone_pos = None
 
     def action(self) -> int:
-        # What the agent sees
         agent_position = self.observation[ : 2]
         colony_position = self.observation[2 : 2 + 2] # FOR ONLY 1 COLONY
 
@@ -42,8 +78,13 @@ class ReactiveAgent(Agent):
                 action, closest_foodpile_pos = self.go_to_closest_foodpile(agent_position, foodpiles_in_view)
             else:
                 action = COLLECT_FOOD
+        elif(self.following_trail):
+            action = self.examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
         elif(self.check_for_intense_pheromones_in_view(agent_position, pheromones_in_view)):
-            # TODO need to follow pheromones correctly, do I need to take the trail into account? Guessing yes
+            self.promising_pheromone_pos = self.identify_most_intense_pheromone(agent_position, pheromones_in_view)
+
+            action = self.examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
+            self.following_trail = True
         else:
             action = self.explore_randomly()
 
@@ -223,7 +264,6 @@ class ReactiveAgent(Agent):
 
         return most_intense_pheromone_pos
 
-    '''
     def examine_promising_pheromones(self, agent_position, pheromones_in_view, colony_position):
 
         distances = np.array(self.promising_pheromone_pos) - np.array(agent_position)
@@ -243,7 +283,6 @@ class ReactiveAgent(Agent):
             if(surrounding_pheromones[next_promising_pheromone] == 0): # lost trail... 
                 self.following_trail = False
                 self.promising_pheromone_pos = None
-                self.desire = EXPLORE
                 action = self.explore_randomly()
                 return action
 
@@ -257,7 +296,6 @@ class ReactiveAgent(Agent):
 
             if(self.promising_pheromone_pos == None): # lost trail... 
                 self.following_trail = False
-                self.desire = EXPLORE
                 action = self.explore_randomly()
                 return action
 
@@ -267,7 +305,6 @@ class ReactiveAgent(Agent):
         else:
             action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
             return action
-    '''
 
     # ############### #
     # Private Methods #
@@ -288,3 +325,36 @@ class ReactiveAgent(Agent):
             return UP
         else:
             return STAY
+        
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--episodes", type=int, default=1)
+    parser.add_argument("--render-sleep-time", type=float, default=0.5)
+    opt = parser.parse_args()
+
+    # 1 - Setup environment
+    environment = AntColonyEnv(
+        grid_shape=(10, 10),
+        n_agents=1, 
+        max_steps=100,
+        n_foodpiles=3
+    )
+    environment = SingleAgentWrapper(environment, agent_id=0)
+
+    # 2 - Setup agents
+    agents = [
+        ReactiveAgent(agent_id=0, n_agents=1)
+    ]
+
+    # 3 - Evaluate agents
+    results = {}
+    agent_id = 0
+    for agent in agents:
+        result = run_single_agent(environment, agent, opt.episodes, agent_id)
+        results[agent.name] = result
+        agent_id += 1
+
+    # 4 - Compare results
+    #compare_results(results, title="Agents on 'Predator Prey' Environment", colors=["orange", "green"])

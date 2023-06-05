@@ -202,7 +202,6 @@ class DeliberativeAgent(Agent):
     # Auxiliary Methods #
     # ################# #
     
-
     def find_global_pos(self, agent_pos, object_relative_position_index):
         
         # Test: 23, agent is 4,6
