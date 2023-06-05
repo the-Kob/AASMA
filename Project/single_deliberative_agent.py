@@ -88,8 +88,7 @@ class DeliberativeAntAgent(Agent):
         # ONLY WORKS FOR A SINGLE COLONY
         # IN examine_promising_pheromones, WE ARE MERELY USING DISTANCE AND NOT PHEROMONE INTENSITY LEVELS... HOW DO WE CHANGE THIS? Argmin now that we only use food pheromones?
         # REMOVE COLONY POSITION
-        # AVOID OBSTACLES IN AGENT INSTEAD OF IN ENV (momentarily turned this off) -> DO this for other agents (if action the same for a long time, switch)
-        # CONTINUES WITH FOOD IN MOUTH?
+        # AVOID OBSTACLES IN AGENT INSTEAD OF IN ENV (momentarily turned this off) -> DO this for other agents (if action the same for a long time, switch)        # CONTINUES WITH FOOD IN MOUTH?
 
         # SOLVED
         # THE AGENT MIGHT MISS RELEVANT HIGH INTENSITY PHEROMONES IF IT DOESN'T GO TO THE COLONY AND MERELY LOOKS AT IT (LINE 189)
@@ -97,6 +96,7 @@ class DeliberativeAntAgent(Agent):
         #   (when the ant can't find strong pheromones, it randomly explores but this should be different from normal exploring, 
         #   where the ant is supposed to avoid exploiting other foodpiles)
         # INCREASE FOOD PHEROMONE MORE (now there only is food pheromone)
+        # CONTINUES WITH FOOD IN MOUTH?
 
         action_to_perform = self.deliberative_architecture()
 
@@ -468,7 +468,7 @@ if __name__ == '__main__':
 
     # 1 - Setup environment
     environment = AntColonyEnv(
-        grid_shape=(7, 7),
+        grid_shape=(10, 10),
         n_agents=1, 
         max_steps=100,
         n_foodpiles=3
