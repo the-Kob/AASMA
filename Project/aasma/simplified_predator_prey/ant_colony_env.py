@@ -47,7 +47,7 @@ class AntColonyEnv(gym.Env):
         self.foodpile_capacity_decrement = foodpile_capacity_decrement
 
         # Has food flag
-        self.has_food = {_: False for _ in range(self.n_agents)}
+        self.has_food = [0 for _ in range(self.n_agents)]
 
         # Colonies
         self.n_colonies = n_colonies
@@ -148,7 +148,7 @@ class AntColonyEnv(gym.Env):
         self.colonies_storage = {_: self.initial_colonies_storage for _ in range(self.n_colonies)} # added this 
 
         # Reset food flag
-        self.has_food = {_: False for _ in range(self.n_agents)}
+        self.has_food = [0 for _ in range(self.n_agents)]
 
         # Concatenate observed environment to features
         observed_environment = self.get_agent_obs() # 52 for each agent
@@ -164,7 +164,7 @@ class AntColonyEnv(gym.Env):
 
         # Small penalty for dumb behavior (dropping food without having any)
         for agent_i in range(self.n_agents):
-            if(agents_action[agent_i] == 10 and self.has_food[agent_i] == False):
+            if(agents_action[agent_i] == 10 and self.has_food[agent_i] == 0):
                 rewards[agent_i] += self._penalty
 
         # Decrease intensity of pheromones
@@ -194,7 +194,7 @@ class AntColonyEnv(gym.Env):
                         agent_i = surrounding_agents_i[i]
                         action = agents_action[agent_i]
 
-                        if(self.has_food[agent_i] == False and action == 9):
+                        if(self.has_food[agent_i] == 0 and action == 9):
 
                             # Reduce foodpile capacity
                             self.foodpile_capacity[foodpile_i] -= self.foodpile_capacity_decrement
@@ -208,7 +208,7 @@ class AntColonyEnv(gym.Env):
                             rewards[agent_i] += self.foodpile_capture_reward
 
                             # Signal flag
-                            self.has_food[agent_i] = True
+                            self.has_food[agent_i] = self.foodpile_capacity_decrement
 
 
         # Update colonies storage
@@ -222,7 +222,7 @@ class AntColonyEnv(gym.Env):
                     agent_i = surrounding_agents_i[i]
                     action = agents_action[agent_i]
 
-                if(self.has_food[agent_i] == True and action == 10): # if one of the surrounding agents decides to drop food...
+                if(self.has_food[agent_i] != 0 and action == 10): # if one of the surrounding agents decides to drop food...
 
                     # Increase colony storage
                     self.colonies_storage[colony_i] += self.colonies_storage_increment
@@ -231,13 +231,13 @@ class AntColonyEnv(gym.Env):
                     rewards[agent_i] += self.colonies_deposit_reward
 
                     # Signal flag
-                    self.has_food[agent_i] = False
+                    self.has_food[agent_i] = 0
 
             if(self.colonies_storage[colony_i] > 1):
                 self.colonies_storage[colony_i] -= self.colonies_storage_decrement # We consider 1 to be the lowest food capacity possible (so 0 can mean ants can't see the colony)
-
+                
         # If we have raeched max steps, if every foodpile has been depleted (and the agents are not holding food), if a colony reaches min capacity, we should also stop
-        if (self._step_count >= self._max_steps) or (False not in self.foodpile_depleted and True not in self.has_food) or (1 in self.colonies_storage):
+        if (self._step_count >= self._max_steps) or (False not in self.foodpile_depleted and not any(self.has_food)) or (1 in self.colonies_storage):
             for i in range(self.n_agents):
                 self._agent_dones[i] = True
 
@@ -467,40 +467,6 @@ class AntColonyEnv(gym.Env):
 
         self.__update_agent_view(agent_i) # this should always happen to prevent pheromone + NOOP => empy cell with agent in there ;(
 
-    def __avoid_obstacles(self, move, curr_pos, next_pos):
-
-        if(next_pos is not None and self._is_cell_obstacle(next_pos)):
-
-            if(move == 0 or move == 2): # object is obstructing up/down
-                move = random.randrange(1, 4, 2) # gives odds
-                if move == 1:  # left
-                    next_pos = [curr_pos[0], curr_pos[1] - 1]
-                elif move == 3:  # right
-                    next_pos = [curr_pos[0], curr_pos[1] + 1]
-
-            elif(move == 1 or move == 3): # object is obstructing left/right
-                move = random.randrange(0, 3, 2) # gives evens
-                if move == 0:  # down
-                    next_pos = [curr_pos[0] + 1, curr_pos[1]]
-                elif move == 2:  # up
-                    next_pos = [curr_pos[0] - 1, curr_pos[1]]
-
-            elif(move == 5 or move == 7): # object is obstructing up_phero/down_phero
-                move = random.randrange(6, 9, 2) # gives evens
-                if move == 6:  # left_phero
-                    next_pos = [curr_pos[0], curr_pos[1] - 1]
-                elif move == 8:  # right_phero
-                    next_pos = [curr_pos[0], curr_pos[1] + 1]
-
-            elif(move == 6 or move == 8): # object is obstructing left_phero/right_phero
-                move = random.randrange(5, 8, 2) # gives odds
-                if move == 5:  # down_phero
-                    next_pos = [curr_pos[0] + 1, curr_pos[1]]
-                elif move == 7:  # up_phero
-                    next_pos = [curr_pos[0] - 1, curr_pos[1]]
-        
-        return move, next_pos
-
     def __update_agent_view(self, agent_i):
         self._full_obs[self.agent_pos[agent_i][0]][self.agent_pos[agent_i][1]] = PRE_IDS['agent'] + str(agent_i + 1)
 
@@ -561,7 +527,7 @@ class AntColonyEnv(gym.Env):
         # Agent render
         for agent_i in range(self.n_agents):
 
-            if(self.has_food[agent_i]): ant_color = AGENT_WITH_FOOD_COLOR # ant is purple when carrying food
+            if(self.has_food[agent_i] != 0): ant_color = AGENT_WITH_FOOD_COLOR # ant is purple when carrying food
             else: ant_color = AGENT_COLOR # ant is normally black
 
             draw_circle(img, self.agent_pos[agent_i], cell_size=CELL_SIZE, fill=ant_color)

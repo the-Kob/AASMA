@@ -63,10 +63,11 @@ class DeliberativeAntAgent(Agent):
     The deliberative agent has beliefs, desires and intention
     """
 
-    def __init__(self, agent_id, n_agents):
+    def __init__(self, agent_id, n_agents, knowledgeable=True):
         super(DeliberativeAntAgent, self).__init__(f"Deliberative Ant Agent")
         self.agent_id = agent_id
         self.n_agents = n_agents
+        self.knowledgeable = knowledgeable
 
         # Deliberation variables
         self.beliefs = None
@@ -88,6 +89,7 @@ class DeliberativeAntAgent(Agent):
         # IN examine_promising_pheromones, WE ARE MERELY USING DISTANCE AND NOT PHEROMONE INTENSITY LEVELS... HOW DO WE CHANGE THIS? Argmin now that we only use food pheromones?
         # REMOVE COLONY POSITION
         # AVOID OBSTACLES IN AGENT INSTEAD OF IN ENV (momentarily turned this off) -> DO this for other agents (if action the same for a long time, switch)
+        # CONTINUES WITH FOOD IN MOUTH?
 
         # SOLVED
         # THE AGENT MIGHT MISS RELEVANT HIGH INTENSITY PHEROMONES IF IT DOESN'T GO TO THE COLONY AND MERELY LOOKS AT IT (LINE 189)
@@ -118,7 +120,8 @@ class DeliberativeAntAgent(Agent):
         pheromones_in_view = self.beliefs[29:54]
 
         colony_storage = self.beliefs[54] # FOR ONLY 1 COLONY
-        has_food = self.beliefs[55]
+        has_food = any([self.beliefs[55]])
+
 
         # DESIRES
         if(self.desire == None):
@@ -136,7 +139,7 @@ class DeliberativeAntAgent(Agent):
                 action = self.go_to_colony(agent_position, colony_position, has_food) # move there
 
             else: # if we have reached it already...
-                if(has_food == True): # drop any food, in case the agent is carrying any
+                if(has_food): # drop any food, in case the agent is carrying any
                     action = DROP_FOOD
                 else: # or just stay - next step the desire will update
                     action = STAY
@@ -465,7 +468,7 @@ if __name__ == '__main__':
 
     # 1 - Setup environment
     environment = AntColonyEnv(
-        grid_shape=(10, 10),
+        grid_shape=(7, 7),
         n_agents=1, 
         max_steps=100,
         n_foodpiles=3
