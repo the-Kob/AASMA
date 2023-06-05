@@ -8,7 +8,7 @@ from aasma import Agent
 from aasma.utils import compare_results
 from aasma.simplified_predator_prey import AntColonyEnv
 
-from single_deliberative_agent import DeliberativeAgent
+from single_deliberative_agent import DeliberativeAntAgent
 
 # from SOMEWHERE import ReactiveAgent REPLACE!!!
 
@@ -58,10 +58,10 @@ if __name__ == '__main__':
     teams = {
 
         "Deliberative Team": [
-            DeliberativeAgent(agent_id=0, n_agents=4),
-            DeliberativeAgent(agent_id=1, n_agents=4),
-            DeliberativeAgent(agent_id=2, n_agents=4),
-            DeliberativeAgent(agent_id=3, n_agents=4),
+            DeliberativeAntAgent(agent_id=0, n_agents=4),
+            DeliberativeAntAgent(agent_id=1, n_agents=4),
+            DeliberativeAntAgent(agent_id=2, n_agents=4),
+            DeliberativeAntAgent(agent_id=3, n_agents=4),
         ],
 
         #"Reactive Team": [

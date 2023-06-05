@@ -45,7 +45,7 @@ def run_single_agent(environment: Env, agent: Agent, n_episodes: int, agent_id: 
             time.sleep(opt.render_sleep_time)
             observation = next_observation
 
-            DeliberativeAgent.express_desire(agent)
+            DeliberativeAntAgent.express_desire(agent)
             print(f"\tAction: {environment.get_action_meanings()[action]}\n")
             print(f"\tObservation: {observation}")
 
@@ -56,7 +56,7 @@ def run_single_agent(environment: Env, agent: Agent, n_episodes: int, agent_id: 
     return results
 
 
-class DeliberativeAgent(Agent):
+class DeliberativeAntAgent(Agent):
 
     """
     A baseline agent for the AntColonyEnv environment.
@@ -64,12 +64,15 @@ class DeliberativeAgent(Agent):
     """
 
     def __init__(self, agent_id, n_agents):
-        super(DeliberativeAgent, self).__init__(f"Deliberative Agent")
+        super(DeliberativeAntAgent, self).__init__(f"Deliberative Ant Agent")
         self.agent_id = agent_id
         self.n_agents = n_agents
-        self.n_actions = N_ACTIONS
+
+        # Deliberation variables
         self.beliefs = None
         self.desire = None
+
+        # Exploration variables
         self.steps_exploring = 0
         self.current_exploring_action = STAY
         self.following_trail = False
@@ -84,7 +87,7 @@ class DeliberativeAgent(Agent):
         # ONLY WORKS FOR A SINGLE COLONY
         # IN examine_promising_pheromones, WE ARE MERELY USING DISTANCE AND NOT PHEROMONE INTENSITY LEVELS... HOW DO WE CHANGE THIS? Argmin now that we only use food pheromones?
         # REMOVE COLONY POSITION
-        # AVOID OBSTACLES IN AGENT INSTEAD OF IN ENV (momentarily turned this off)
+        # AVOID OBSTACLES IN AGENT INSTEAD OF IN ENV (momentarily turned this off) -> DO this for other agents (if action the same for a long time, switch)
 
         # SOLVED
         # THE AGENT MIGHT MISS RELEVANT HIGH INTENSITY PHEROMONES IF IT DOESN'T GO TO THE COLONY AND MERELY LOOKS AT IT (LINE 189)
@@ -94,10 +97,6 @@ class DeliberativeAgent(Agent):
         # INCREASE FOOD PHEROMONE MORE (now there only is food pheromone)
 
         action_to_perform = self.deliberative_architecture()
-
-
-        #if(action_to_perform != STAY and action_to_perform != COLLECT_FOOD and action_to_perform != COLLECT_FOOD):
-        #    return self.avoid_obstacles(action_to_perform)
 
         return action_to_perform
     
@@ -126,7 +125,7 @@ class DeliberativeAgent(Agent):
             if(has_food or not self.check_if_destination_reached(agent_position, colony_position)): # has food or colony not visible or by default -> go to colony
                 self.desire = GO_TO_COLONY 
             else: # near colony
-                if(colony_storage < 50): # colony food storage is low -> find foodpile
+                if(colony_storage < 100): # colony food storage is low -> find foodpile
                     self.desire = FIND_FOODPILE
                 else: # colony food storage is high -> explore
                     self.desire = EXPLORE
@@ -178,22 +177,33 @@ class DeliberativeAgent(Agent):
                 else: # if we don't have high intensity pheromones in view...
                     action = self.explore_randomly() # we are changing desires but still need to pick an action! -> explore to find pheromones
 
+        # Avoid obstacles
+        if(action != STAY and action != COLLECT_FOOD and action != COLLECT_FOOD):
+            action = self.avoid_obstacles(action, agent_position, colony_position, foodpiles_in_view)
+
         return action
 
-    def avoid_obstacles(self, action):
+    def avoid_obstacles(self, action, agent_position, colony_position, foodpiles_in_view):
 
-        foodpiles_in_view = self.beliefs[4:29]
+        colony_index = self.find_relative_index(agent_position, colony_position)
 
-        if((action == 0 and foodpiles_in_view[12 + 5] != 0) or (action == 2 and foodpiles_in_view[12 - 5])): # foddpile is obstructing up/down
+        # Go around fixed obstacles, like foodpiles and colony
+        if((action == 0 and (foodpiles_in_view[12 + 5] != 0 or colony_index == 12 + 5)) or
+            (action == 2 and (foodpiles_in_view[12 - 5] or colony_index == 12 - 5))): # foddpile is obstructing up/down
             action = random.randrange(1, 4, 2) # gives odds (left or right)
+            print(action)
+            input()
 
-        elif((action == 1 and foodpiles_in_view[12 - 1] != 0) or (action == 3 and foodpiles_in_view[12 + 1])): # object is obstructing left/right
+        elif((action == 1 and (foodpiles_in_view[12 - 1] != 0 or colony_index == 12 - 1)) or
+             (action == 3 and (foodpiles_in_view[12 + 1] or colony_index == 12 + 1))): # object is obstructing left/right
             action = random.randrange(0, 3, 2) # gives evens (up or down)
 
-        elif((action == 5 and foodpiles_in_view[12 + 5] != 0) or (action == 7 and foodpiles_in_view[12 - 5])): # object is obstructing up_phero/down_phero
+        elif((action == 5 and (foodpiles_in_view[12 + 5] != 0 or colony_index == 12 + 5)) or
+             (action == 7 and (foodpiles_in_view[12 - 5] or colony_index == 12 - 5))): # object is obstructing up_phero/down_phero
             action = random.randrange(6, 9, 2) # gives odds (left phero or right phero)
 
-        elif(action == 6 or action == 8): # object is obstructing left_phero/right_phero
+        elif((action == 6 and (foodpiles_in_view[12 - 1] != 0 or colony_index == 12 - 1)) or
+              (action == 8 and (foodpiles_in_view[12 + 1] or colony_index == 12 + 1))): # object is obstructing left_phero/right_phero
             action = random.randrange(5, 8, 2) # gives evens (up phero or down phero)
 
         return action
@@ -464,7 +474,7 @@ if __name__ == '__main__':
 
     # 2 - Setup agents
     agents = [
-        DeliberativeAgent(agent_id=0, n_agents=1)
+        DeliberativeAntAgent(agent_id=0, n_agents=1)
     ]
 
     # 3 - Evaluate agents
