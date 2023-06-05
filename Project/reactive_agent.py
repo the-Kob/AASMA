@@ -36,7 +36,6 @@ def run_single_agent(environment: Env, agent: Agent, n_episodes: int, agent_id: 
             time.sleep(opt.render_sleep_time)
             observation = next_observation
 
-            DeliberativeAgent.express_desire(agent)
             print(f"\tAction: {environment.get_action_meanings()[action]}\n")
             print(f"\tObservation: {observation}")
 
@@ -53,6 +52,8 @@ class ReactiveAgent(Agent):
         self.agent_id = agent_id
         self.n_agents = n_agents
         self.n_actions = N_ACTIONS
+        self.steps_exploring = 0
+        self.current_exploring_action = STAY
         self.following_trail = False
         self.promising_pheromone_pos = None
 
@@ -72,15 +73,13 @@ class ReactiveAgent(Agent):
             else:
                 action = self.go_to_colony(agent_position, colony_position, has_food)
         elif(self.check_for_foodpiles_in_view(foodpiles_in_view)):
-            closest_foodpile_pos = None
+            action, closest_foodpile_pos = self.go_to_closest_foodpile(agent_position, foodpiles_in_view)
 
             if(self.check_if_destination_reached(agent_position, closest_foodpile_pos)):
-                action, closest_foodpile_pos = self.go_to_closest_foodpile(agent_position, foodpiles_in_view)
-            else:
                 action = COLLECT_FOOD
         elif(self.following_trail):
             action = self.examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
-        elif(self.check_for_intense_pheromones_in_view(agent_position, pheromones_in_view)):
+        elif(self.check_for_intense_pheromones_in_view(pheromones_in_view)):
             self.promising_pheromone_pos = self.identify_most_intense_pheromone(agent_position, pheromones_in_view)
 
             action = self.examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
@@ -201,9 +200,6 @@ class ReactiveAgent(Agent):
             return farthest_poi_position
 
     def check_if_destination_reached(self, agent_position, point_of_interest_pos):
-        if(point_of_interest_pos == None):
-            return False
-
         distances = np.array(point_of_interest_pos) - np.array(agent_position)
         abs_distances = np.absolute(distances)
         if abs_distances[0] + abs_distances[1] > 1:
@@ -310,15 +306,33 @@ class ReactiveAgent(Agent):
     # Private Methods #
     # ############### #
 
-    def _close_horizontally(self, distances):
+    def _close_horizontally(self, distances, has_food):
         if distances[0] > 0:
-            return RIGHT
+            if(has_food):
+                return RIGHT_PHERO
+            else:
+                return RIGHT
         elif distances[0] < 0:
-            return LEFT
+            if(has_food):
+                return LEFT_PHERO
+            else:
+                return LEFT
         else:
             return STAY
 
-    def _close_vertically(self, distances):
+    def _close_vertically(self, distances, has_food):
+        if distances[1] > 0:
+            if(has_food):
+                return DOWN_PHERO
+            else:
+                return DOWN
+        elif distances[1] < 0:
+            if(has_food):
+                return UP_PHERO
+            else:
+                return UP
+        else:
+            return STAY
         if distances[1] > 0:
             return DOWN
         elif distances[1] < 0:
