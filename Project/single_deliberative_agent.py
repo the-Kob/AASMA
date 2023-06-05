@@ -96,8 +96,8 @@ class DeliberativeAgent(Agent):
         action_to_perform = self.deliberative_architecture()
 
 
-        if(action_to_perform != STAY and action_to_perform != COLLECT_FOOD and action_to_perform != COLLECT_FOOD):
-            return self.avoid_obstacles(action_to_perform)
+        #if(action_to_perform != STAY and action_to_perform != COLLECT_FOOD and action_to_perform != COLLECT_FOOD):
+        #    return self.avoid_obstacles(action_to_perform)
 
         return action_to_perform
     
@@ -118,8 +118,8 @@ class DeliberativeAgent(Agent):
         foodpiles_in_view = self.beliefs[4:29]
         pheromones_in_view = self.beliefs[29:54]
 
-        colony_storage = self.beliefs[-2] # FOR ONLY 1 COLONY
-        has_food = self.beliefs[-1]
+        colony_storage = self.beliefs[54] # FOR ONLY 1 COLONY
+        has_food = self.beliefs[55]
 
         # DESIRES
         if(self.desire == None):
