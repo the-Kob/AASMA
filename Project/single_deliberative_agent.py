@@ -153,7 +153,7 @@ class DeliberativeAntAgent(AntAgent):
 
             else: # if we don't have a foodpile in view...
 
-                if(self.following_trail): # if we're already following a trail... # NOT WORKING VERY WELL 
+                if(self.following_trail): # if we're already following a trail...
                     action = self.examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
 
                 elif(self.check_for_intense_pheromones_in_view(pheromones_in_view)): # check for high intensity pheromones
@@ -164,7 +164,7 @@ class DeliberativeAntAgent(AntAgent):
                     self.following_trail = True
 
                 else: # if we don't have high intensity pheromones in view...
-                    action = self.explore_randomly() # we are changing desires but still need to pick an action! -> explore to find pheromones
+                    action = self.explore_randomly() # we are still desiring to find food but need to pick an action! -> explore to find pheromones/foodpiles
 
         # Avoid obstacles
         if(action != STAY and action != COLLECT_FOOD and action != COLLECT_FOOD):
@@ -176,27 +176,40 @@ class DeliberativeAntAgent(AntAgent):
         
         agent_position, _, foodpiles_in_view, pheromones_in_view, colony_storage, has_food = self.beliefs_setup()
 
+        
         # DESIRES
         if(self.desire == None):
-            if(has_food): # has food -> go to colony
+            if(has_food or colony_storage == 0): # has food or colony not visible or by default -> go to colony
                 self.desire = GO_TO_COLONY 
-            else: # no has food
-                self.desire = FIND_FOODPILE
+            else: # near colony
+                if(colony_storage < 100): # colony food storage is low -> find foodpile
+                    self.desire = FIND_FOODPILE
+                else: # colony food storage is high -> explore
+                    self.desire = EXPLORE
 
         # INTENTIONS
         if(self.desire == GO_TO_COLONY):
-            if(colony_storage == 0): # if the agent hasn't reached it yet...
-                action = self.explore_randomly() # move randomly
+            if(colony_storage == 0): # if the agent hasn't seen it yet...
+                action = self.explore_randomly()
 
-            else: # if we have reached it already...
-                if(has_food): # drop any food, in case the agent is carrying any
-                    action = DROP_FOOD
-                else: # or just stay - next step the desire will update
-                    action = self.explore_randomly() # move randomly
+            else: # only if it is in our field of view...
+                if(not self.check_if_destination_reached(agent_position, _)):
+                    action = self.direction_to_go(agent_position, _, has_food)
+                else:
+                    if(has_food): # drop any food, in case the agent is carrying any
+                        action = DROP_FOOD
+                    else: # or just stay - next step the desire will update
+                        action = STAY
 
-                self.desire = None # desire accomplished, find a new desire
+                    self.desire = None # desire accomplished, find a new desire
 
-        elif (self.desire == FIND_FOODPILE):
+        elif(self.desire == EXPLORE):
+            if(not self.check_for_foodpiles_in_view(foodpiles_in_view)):
+                action = self.explore_randomly()
+            else:
+                self.desire = FIND_FOODPILE
+
+        if(self.desire == FIND_FOODPILE):
 
             if(self.check_for_foodpiles_in_view(foodpiles_in_view)):  # we have a foodpile in view...
                 action, closest_foodpile_pos = self.go_to_closest_foodpile(agent_position, foodpiles_in_view)
@@ -211,19 +224,18 @@ class DeliberativeAntAgent(AntAgent):
 
             else: # if we don't have a foodpile in view...
 
-                if(self.following_trail): # if we're already following a trail... # NOT WORKING VERY WELL 
-                    print("following")
-                    action = self.examine_promising_pheromones(agent_position, pheromones_in_view, _)
+                if(self.following_trail): # if we're already following a trail...
+                    action = self.unknowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view)
 
                 elif(self.check_for_intense_pheromones_in_view(pheromones_in_view)): # check for high intensity pheromones
 
                     self.promising_pheromone_pos = self.identify_most_intense_pheromone(agent_position, pheromones_in_view)
 
-                    action = self.examine_promising_pheromones(agent_position, pheromones_in_view, _)
+                    action = self.unknowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view)
                     self.following_trail = True
 
                 else: # if we don't have high intensity pheromones in view...
-                    action = self.explore_randomly() # we are changing desires but still need to pick an action! -> explore to find pheromones
+                    action = self.explore_randomly() # we are still desiring to find food but need to pick an action! -> explore to find pheromones/foodpiles
 
         # Avoid obstacles
         if(action != STAY and action != COLLECT_FOOD and action != COLLECT_FOOD):
@@ -285,12 +297,6 @@ class DeliberativeAntAgent(AntAgent):
             #self.promising_pheromone_pos = self.find_global_pos(agent_position, surrounding_pheromones[next_promising_pheromone])
 
     # This option utilizes distance from colony (we keep maximizing it)
-
-            if(not self.knowledgeable): #  Unknowledgeable approach
-                self.promising_pheromone_pos = self.find_global_pos(surrounding_pheromones[next_promising_pheromone])
-                action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
-                return action
-
             #  Knowledgeable approach
             self.promising_pheromone_pos = self.farthest_pheromone_of_interest(colony_position, agent_position, promising_pheromone_relative_index, pheromones_in_view)
 
@@ -307,7 +313,42 @@ class DeliberativeAntAgent(AntAgent):
             action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
             return action
 
-    def avoid_obstacles(self, action, agent_position, colony_position, foodpiles_in_view):
+def unknowledgeable_examine_promising_pheromones(self, agent_position, pheromones_in_view):
+
+        distances = np.array(self.promising_pheromone_pos) - np.array(agent_position)
+        abs_distances = np.absolute(distances)
+
+        if(abs_distances[0] + abs_distances[1] == 1 or (abs_distances[0] == 1 and abs_distances[1] == 1)):
+            promising_pheromone_relative_index = self.find_relative_index(agent_position, self.promising_pheromone_pos)
+
+            surrounding_pheromone_down = pheromones_in_view[promising_pheromone_relative_index + 5]
+            surrounding_pheromone_left = pheromones_in_view[promising_pheromone_relative_index - 1]
+            surrounding_pheromone_up = pheromones_in_view[promising_pheromone_relative_index - 5]
+            surrounding_pheromone_right = pheromones_in_view[promising_pheromone_relative_index + 1]
+
+            surrounding_pheromones = np.array([surrounding_pheromone_down, surrounding_pheromone_left, surrounding_pheromone_up, surrounding_pheromone_right])
+            next_promising_pheromone = np.argmax(surrounding_pheromones)
+
+            if(surrounding_pheromones[next_promising_pheromone] == 0): # lost trail... 
+                self.following_trail = False
+                self.promising_pheromone_pos = None
+                action = self.explore_randomly()
+                return action
+
+            #  Unknowledgeable approach
+            self.promising_pheromone_pos = self.find_global_pos(surrounding_pheromones[next_promising_pheromone])
+
+            if(self.promising_pheromone_pos == None): # lost trail... 
+                self.following_trail = False
+                self.desire = EXPLORE
+                action = self.explore_randomly()
+                return action
+
+        action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
+        return action
+
+
+def avoid_obstacles(self, action, agent_position, colony_position, foodpiles_in_view):
 
         colony_index = self.find_relative_index(agent_position, colony_position)
 
