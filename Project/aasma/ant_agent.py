@@ -8,7 +8,6 @@ N_ACTIONS = 11
 DOWN, LEFT, UP, RIGHT, STAY, DOWN_PHERO, LEFT_PHERO, UP_PHERO, RIGHT_PHERO, COLLECT_FOOD, DROP_FOOD = range(N_ACTIONS)
 
 class AntAgent(ABC):
-
     def __init__(self, name: str, agent_id, n_agents, knowledgeable):
         self.name = name
         self.observation :np.ndarray = np.ndarray([])
