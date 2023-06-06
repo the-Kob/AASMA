@@ -4,16 +4,16 @@ import numpy as np
 from gym import Env
 from typing import Sequence
 
-from aasma import Agent
 from aasma.utils import compare_results
 from aasma.simplified_predator_prey import AntColonyEnv
 
+from aasma import AntAgent
+
 from single_deliberative_agent import DeliberativeAntAgent
+from single_reactive_agent import ReactiveAntAgent
 
-# from SOMEWHERE import ReactiveAgent REPLACE!!!
 
-
-def run_multi_agent(environment: Env, agents: Sequence[Agent], n_episodes: int) -> np.ndarray:
+def run_multi_agent(environment: Env, agents: Sequence[AntAgent], n_episodes: int) -> np.ndarray:
 
     results = np.zeros(n_episodes)
 
@@ -47,12 +47,12 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--episodes", type=int, default=1) # CHANGE THIS (n_episodes)
+    parser.add_argument("--episodes", type=int, default=100) # CHANGE THIS (n_episodes)
     parser.add_argument("--render-sleep-time", type=float, default=0.1)
     opt = parser.parse_args()
 
     # 1 - Setup the environment
-    environment = AntColonyEnv(grid_shape=(25, 25), n_agents=4, max_steps=200, n_foodpiles=5)
+    environment = AntColonyEnv(grid_shape=(25, 25), n_agents=4, max_steps=100, n_foodpiles=5)
 
     # 2 - Setup the teams
     teams = {
@@ -64,19 +64,19 @@ if __name__ == '__main__':
             DeliberativeAntAgent(agent_id=3, n_agents=4),
         ],
 
-        #"Reactive Team": [
-        #    ReactiveAgent(agent_id=0, n_agents=4),
-        #    ReactiveAgent(agent_id=1, n_agents=4),
-        #    ReactiveAgent(agent_id=2, n_agents=4),
-        #    ReactiveAgent(agent_id=3, n_agents=4)
-        #],
+        "Reactive Team": [
+            ReactiveAntAgent(agent_id=0, n_agents=4),
+            ReactiveAntAgent(agent_id=1, n_agents=4),
+            ReactiveAntAgent(agent_id=2, n_agents=4),
+            ReactiveAntAgent(agent_id=3, n_agents=4)
+        ],
 
-        #"1 Deliberative + 3 Reactive": [
-        #    DeliberativeAgent(agent_id=0, n_agents=4),
-        #    ReactiveAgent(environment.action_space[1].n),
-        #    ReactiveAgent(environment.action_space[2].n),
-        #    ReactiveAgent(environment.action_space[3].n)
-        #]
+        "1 Deliberative + 3 Reactive": [
+            DeliberativeAntAgent(agent_id=0, n_agents=4),
+            ReactiveAntAgent(environment.action_space[1].n),
+            ReactiveAntAgent(environment.action_space[2].n),
+            ReactiveAntAgent(environment.action_space[3].n)
+        ]
     }
 
     # 3 - Evaluate teams

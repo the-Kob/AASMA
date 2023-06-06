@@ -45,7 +45,7 @@ def run_single_agent(environment: Env, agent: AntAgent, n_episodes: int, agent_i
             time.sleep(opt.render_sleep_time)
             observation = next_observation
 
-            DeliberativeAntAgent.express_desire(agent)
+            #DeliberativeAntAgent.express_desire(agent)
             print(f"\tAction: {environment.get_action_meanings()[action]}\n")
             print(f"\tObservation: {observation}")
 
