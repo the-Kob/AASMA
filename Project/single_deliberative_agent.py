@@ -55,7 +55,6 @@ def run_single_agent(environment: Env, agent: AntAgent, n_episodes: int, agent_i
 
     return results
 
-
 class DeliberativeAntAgent(AntAgent):
 
     """
@@ -309,7 +308,7 @@ class DeliberativeAntAgent(AntAgent):
                 action = self.explore_randomly()
                 return action
 
-            #  Unknowledgeable approach
+            # Unknowledgeable approach
             self.promising_pheromone_pos = self.find_global_pos(surrounding_pheromones[next_promising_pheromone])
 
             if(self.promising_pheromone_pos == None): # lost trail... 
@@ -320,8 +319,6 @@ class DeliberativeAntAgent(AntAgent):
 
         action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
         return action
-
-    
 
 if __name__ == '__main__':
 
