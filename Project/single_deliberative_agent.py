@@ -98,7 +98,7 @@ class DeliberativeAntAgent(AntAgent):
 
     def _knowledgeable_deliberative(self): # The agent knows its own global position and the colony's position
 
-        agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food = self.beliefs_setup()
+        agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food = self.observation_setup()
 
         # DESIRES
         if(self.desire == None):
@@ -165,9 +165,8 @@ class DeliberativeAntAgent(AntAgent):
 
     def _unknowledgeable_deliberative(self): # The agent does not know its own global position and the colony's position
         
-        agent_position, _, foodpiles_in_view, pheromones_in_view, colony_storage, has_food = self.beliefs_setup()
+        agent_position, _, foodpiles_in_view, pheromones_in_view, colony_storage, has_food = self.observation_setup()
 
-        
         # DESIRES
         if(self.desire == None):
             if(has_food or colony_storage == 0): # has food or colony not visible or by default -> go to colony
@@ -243,22 +242,6 @@ class DeliberativeAntAgent(AntAgent):
             print("\tDesire: None")
         else:
             print(f"\tDesire: {DESIRE_MEANING[self.desire]}")
-
-    def beliefs_setup(self):
-
-        # BELIEFS
-        self.beliefs = self.observation
-
-        agent_position = self.beliefs[:2]
-        colony_position = self.beliefs[2:4] # FOR ONLY 1 COLONY
-
-        foodpiles_in_view = self.beliefs[4:29]
-        pheromones_in_view = self.beliefs[29:54]
-
-        colony_storage = self.beliefs[54] # FOR ONLY 1 COLONY
-        has_food = any([self.beliefs[55]])
-
-        return agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food
 
     def knowledgeable_examine_promising_pheromones(self, agent_position, pheromones_in_view, colony_position):
 

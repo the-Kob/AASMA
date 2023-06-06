@@ -224,6 +224,18 @@ class AntAgent(ABC):
 
         return action
 
+    def observation_setup(self):
+        agent_position = self.observation[:2]
+        colony_position = self.observation[2:4] # FOR ONLY 1 COLONY
+
+        foodpiles_in_view = self.observation[4:29]
+        pheromones_in_view = self.observation[29:54]
+
+        colony_storage = self.observation[54] # FOR ONLY 1 COLONY
+        has_food = any([self.observation[55]])
+
+        return agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food
+
     # ############### #
     # Private Methods #
     # ############### #
