@@ -10,7 +10,6 @@ DOWN, LEFT, UP, RIGHT, STAY, DOWN_PHERO, LEFT_PHERO, UP_PHERO, RIGHT_PHERO, COLL
 class AntAgent(ABC):
 
     def __init__(self, name: str, agent_id, n_agents, knowledgeable):
-        super(AntAgent, self).__init__(f"Ant Agent")
         self.name = name
         self.observation :np.ndarray = np.ndarray([])
         self.agent_id = agent_id
