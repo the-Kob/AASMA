@@ -340,7 +340,7 @@ if __name__ == '__main__':
 
     # 2 - Setup agents
     agents = [
-        DeliberativeAntAgent(agent_id=0, n_agents=1)
+        DeliberativeAntAgent(agent_id=0, n_agents=1, knowledgeable=True)
     ]
 
     # 3 - Evaluate agents

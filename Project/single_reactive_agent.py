@@ -50,11 +50,15 @@ class ReactiveAntAgent(AntAgent):
         super(ReactiveAntAgent, self).__init__(f"Reactive Ant Agent", agent_id, n_agents, knowledgeable)
 
     def action(self) -> int:
+        '''TODO Unkowledgeable
         if(self.knowledgeable):
             action_to_perform = self._knowledgeable_reactive()
         else:
             action_to_perform = self._unknowledgeable_reactive()
+        '''
 
+        action_to_perform = self._knowledgeable_reactive()
+            
         return action_to_perform
 
     def _knowledgeable_reactive(self):
@@ -86,6 +90,7 @@ class ReactiveAntAgent(AntAgent):
 
         return action
 
+    '''TODO Unkowledgeable
     def _unknowledgeable_reactive(self):
         agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food = self.observation_setup()
 
@@ -114,7 +119,8 @@ class ReactiveAntAgent(AntAgent):
             action = self.avoid_obstacles(action, agent_position, colony_position, foodpiles_in_view)
 
         return action
-
+    '''
+        
     # ################# #
     # Auxiliary Methods #
     # ################# #
@@ -153,6 +159,7 @@ class ReactiveAntAgent(AntAgent):
         
         return action
 
+    '''TODO Unkowledgeable
     def unknowledgeable_examine_promising_pheromones(self, agent_position, pheromones_in_view):
         distances = np.array(self.promising_pheromone_pos) - np.array(agent_position)
         abs_distances = np.absolute(distances)
@@ -186,6 +193,7 @@ class ReactiveAntAgent(AntAgent):
         action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
         
         return action
+    '''
         
 if __name__ == '__main__':
 
