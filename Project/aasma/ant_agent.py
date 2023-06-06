@@ -152,14 +152,22 @@ class AntAgent(ABC):
         return self.direction_to_go(agent_position, colony_position, has_food)
     
     def explore_randomly(self):
+        
+        if(any([self.observation[55]])): # if agent has food, lay down pheromones
+            index_min = 5
+            index_max = 8
+        else:
+            index_min = 0
+            index_max = 3
+
         if(self.steps_exploring == 0): # hasn't been exploring -> choose direction and keep it for 5 steps (arbitrary amount)
-            self.current_exploring_action = random.randint(0, 3)
+            self.current_exploring_action = random.randint(index_min, index_max)
 
         elif(self.steps_exploring >= 5): # has explored enough in one direction -> choose another which isn't the opposite and isn't the same (better behavior)
                 
-            new_exploring_action = random.randint(0, 3)
+            new_exploring_action = random.randint(index_min, index_max)
             while(new_exploring_action == self.current_exploring_action + 2 or new_exploring_action == self.current_exploring_action - 2 or new_exploring_action == self.current_exploring_action):
-                new_exploring_action = random.randint(0, 3)
+                new_exploring_action = random.randint(index_min, index_max)
             
             self.current_exploring_action = new_exploring_action
             self.steps_exploring = 0 # this action isn't changed in next call because of the += 1 below

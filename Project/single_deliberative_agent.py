@@ -63,11 +63,10 @@ class DeliberativeAntAgent(AntAgent):
     The deliberative agent has beliefs, desires and intention
     """
 
-    def __init__(self, agent_id, n_agents, knowledgeable=True):
-        super(DeliberativeAntAgent, self).__init__(f"Deliberative Ant Agent", agent_id, n_agents, knowledgeable)
+    def __init__(self, agent_id, n_agents):
+        super(DeliberativeAntAgent, self).__init__(f"Deliberative Ant Agent", agent_id, n_agents, knowledgeable=True)
         
         # Deliberation variables
-        self.beliefs = None
         self.desire = None
 
     def action(self) -> int:
@@ -89,15 +88,18 @@ class DeliberativeAntAgent(AntAgent):
         # INCREASE FOOD PHEROMONE MORE (now there only is food pheromone)
         # CONTINUES WITH FOOD IN MOUTH?
 
-        if(self.knowledgeable):
-            action_to_perform = self._knowledgeable_deliberative()
-        else:
-            action_to_perform = self._unknowledgeable_deliberative()
+        action_to_perform = self._knowledgeable_deliberative()
+
+        #if(self.knowledgeable):
+        #    action_to_perform = self._knowledgeable_deliberative()
+        #else:
+        #    action_to_perform = self._unknowledgeable_deliberative()
 
         return action_to_perform
 
     def _knowledgeable_deliberative(self): # The agent knows its own global position and the colony's position
 
+        # BELIEFS
         agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food = self.observation_setup()
 
         # DESIRES
@@ -165,13 +167,14 @@ class DeliberativeAntAgent(AntAgent):
 
     def _unknowledgeable_deliberative(self): # The agent does not know its own global position and the colony's position
         
+        # BELIEFS
         agent_position, _, foodpiles_in_view, pheromones_in_view, colony_storage, has_food = self.observation_setup()
 
         # DESIRES
         if(self.desire == None):
-            if(has_food or colony_storage == 0): # has food or colony not visible or by default -> go to colony
+            if(has_food): # has food -> go to colony 
                 self.desire = GO_TO_COLONY 
-            else: # near colony
+            else: # does not have food
                 if(colony_storage < 100): # colony food storage is low -> find foodpile
                     self.desire = FIND_FOODPILE
                 else: # colony food storage is high -> explore
@@ -280,12 +283,8 @@ class DeliberativeAntAgent(AntAgent):
                 action = self.explore_randomly()
                 return action
 
-            action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
-            return action
-        
-        else:
-            action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
-            return action
+        action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
+        return action
 
     def unknowledgeable_examine_promising_pheromones(self, agent_position, pheromones_in_view):
 
@@ -301,16 +300,18 @@ class DeliberativeAntAgent(AntAgent):
             surrounding_pheromone_right = pheromones_in_view[promising_pheromone_relative_index + 1]
 
             surrounding_pheromones = np.array([surrounding_pheromone_down, surrounding_pheromone_left, surrounding_pheromone_up, surrounding_pheromone_right])
-            next_promising_pheromone = np.argmax(surrounding_pheromones)
 
-            if(surrounding_pheromones[next_promising_pheromone] == 0): # lost trail... 
+            if(not any(surrounding_pheromones)): # if there aren't any surrounding pheromones, we lost the trail..
                 self.following_trail = False
                 self.promising_pheromone_pos = None
+                self.desire = EXPLORE
                 action = self.explore_randomly()
                 return action
 
-            #  Unknowledgeable approach
-            self.promising_pheromone_pos = self.find_global_pos(surrounding_pheromones[next_promising_pheromone])
+            # If there are noteworthy pheromones, we want to find the minimun non null value
+            next_promising_pheromone =  np.argmin(surrounding_pheromones[np.where(surrounding_pheromones > 0)])
+
+            self.promising_pheromone_pos = self.find_global_pos(agent_position, surrounding_pheromones[next_promising_pheromone])
 
             if(self.promising_pheromone_pos == None): # lost trail... 
                 self.following_trail = False
@@ -321,7 +322,6 @@ class DeliberativeAntAgent(AntAgent):
         action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
         return action
 
-    
 
 if __name__ == '__main__':
 
