@@ -153,7 +153,7 @@ class ReactiveAntAgent(AntAgent):
                 action = self.explore_randomly()
                 return action
 
-            self.following_trail = True
+        self.following_trail = True
 
         action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
         

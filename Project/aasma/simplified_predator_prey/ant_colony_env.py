@@ -176,7 +176,8 @@ class AntColonyEnv(gym.Env):
 
                    if(self.pheromones_in_grid[col][row] < self.pheromone_evaporation_rate):
                         self.pheromones_in_grid[col][row] = 0
-                        self._full_obs[col][row] = PRE_IDS['empty'] # this needs to be switched
+                        if('A' not in self._full_obs[col][row]):
+                            self._full_obs[col][row] = PRE_IDS['empty'] # this needs to be switched
 
         for agent_i, action in enumerate(agents_action):
             if not (self._agent_dones[agent_i]):
@@ -405,9 +406,6 @@ class AntColonyEnv(gym.Env):
     def _is_cell_walkable(self, pos):
         return self.is_valid(pos) and ((self._full_obs[pos[0]][pos[1]] == PRE_IDS['empty']) or (self._full_obs[pos[0]][pos[1]] == PRE_IDS['pheromone']))
     
-    def _is_cell_obstacle(self, pos):
-        return self.is_valid(pos) and (('C' in self._full_obs[pos[0]][pos[1]]) or ('F' in self._full_obs[pos[0]][pos[1]]) or ('A' in self._full_obs[pos[0]][pos[1]]))
-    
     def _is_cell_vacant(self, pos):
         return self.is_valid(pos) and (self._full_obs[pos[0]][pos[1]] == PRE_IDS['empty'])
 
@@ -451,12 +449,16 @@ class AntColonyEnv(gym.Env):
         #move, next_pos = self.__avoid_obstacles(move, curr_pos, next_pos)
 
         if next_pos is not None and self._is_cell_walkable(next_pos):
-            self.agent_pos[agent_i] = next_pos
 
             if(move != 9 and move != 10): # movement happens
+
+                self.agent_pos[agent_i] = next_pos
                 
                 # Add pheromones to last location
                 self._full_obs[curr_pos[0]][curr_pos[1]] = PRE_IDS['empty'] # now the last position is going to have the pheromone tag instead of empty
+
+                self.__update_agent_view(agent_i) # this should always happen to prevent pheromone + NOOP => empy cell with agent in there ;(
+
 
                 if(move == 5 or move == 6 or move == 7 or move == 8):
                     self._full_obs[curr_pos[0]][curr_pos[1]] = PRE_IDS['pheromone']
@@ -464,8 +466,7 @@ class AntColonyEnv(gym.Env):
 
                 #if(move == 0 or move == 1 or move == 2 or move == 3):
                 #    self.pheromones_in_grid[curr_pos[0]][curr_pos[1]] += self.initial_pheromone_intensity # currently stacks pheromones
-
-        self.__update_agent_view(agent_i) # this should always happen to prevent pheromone + NOOP => empy cell with agent in there ;(
+        
 
     def __update_agent_view(self, agent_i):
         self._full_obs[self.agent_pos[agent_i][0]][self.agent_pos[agent_i][1]] = PRE_IDS['agent'] + str(agent_i + 1)

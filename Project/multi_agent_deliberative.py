@@ -9,8 +9,8 @@ from aasma.simplified_predator_prey import AntColonyEnv
 
 from aasma import AntAgent
 
-from single_deliberative_agent import DeliberativeAntAgent
 from single_reactive_agent import ReactiveAntAgent
+from single_deliberative_agent import DeliberativeAntAgent
 
 
 def run_multi_agent(environment: Env, agents: Sequence[AntAgent], n_episodes: int) -> np.ndarray:
@@ -19,9 +19,15 @@ def run_multi_agent(environment: Env, agents: Sequence[AntAgent], n_episodes: in
 
     for episode in range(n_episodes):
 
+
+
         steps = 0
         terminals = [False for _ in range(len(agents))]
         observations = environment.reset()
+
+        for i in range(len(agents)):
+            if(isinstance(DeliberativeAntAgent, agents[i])):
+                DeliberativeAntAgent.reset_desire(agents[i])
 
         while not all(terminals):
             steps += 1
@@ -37,6 +43,7 @@ def run_multi_agent(environment: Env, agents: Sequence[AntAgent], n_episodes: in
             observations = next_observations
 
         results[episode] = steps
+        print(episode)
 
         environment.close()
 
@@ -54,7 +61,7 @@ if __name__ == '__main__':
     # 1 - Setup the environment
     environment = AntColonyEnv(grid_shape=(25, 25), n_agents=4, max_steps=100, n_foodpiles=5)
 
-    # 2 - Setup the teams
+    # 2 - Setup the teams # ISOLATE IN FUNCTION (return agents)
     teams = {
 
         "Deliberative Team": [
@@ -62,22 +69,11 @@ if __name__ == '__main__':
             DeliberativeAntAgent(agent_id=1, n_agents=4),
             DeliberativeAntAgent(agent_id=2, n_agents=4),
             DeliberativeAntAgent(agent_id=3, n_agents=4),
-        ],
-
-        "Reactive Team": [
-            ReactiveAntAgent(agent_id=0, n_agents=4),
-            ReactiveAntAgent(agent_id=1, n_agents=4),
-            ReactiveAntAgent(agent_id=2, n_agents=4),
-            ReactiveAntAgent(agent_id=3, n_agents=4)
-        ],
-
-        "1 Deliberative + 3 Reactive": [
-            DeliberativeAntAgent(agent_id=0, n_agents=4),
-            ReactiveAntAgent(environment.action_space[1].n),
-            ReactiveAntAgent(environment.action_space[2].n),
-            ReactiveAntAgent(environment.action_space[3].n)
-        ]
+        ] 
+        
     }
+
+    # FOR EPISODE, FOR TEAM (RUN 1 EPISODE FOR EVERY TEAM, THEN THE NEXT EPISODE)
 
     # 3 - Evaluate teams
     results = {}

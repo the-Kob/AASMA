@@ -62,7 +62,7 @@ class DeliberativeAntAgent(AntAgent):
     The deliberative agent has beliefs, desires and intention
     """
 
-    def __init__(self, agent_id, n_agents):
+    def __init__(self, agent_id, n_agents, knowledgeable=True):
         super(DeliberativeAntAgent, self).__init__(f"Deliberative Ant Agent", agent_id, n_agents, knowledgeable=True)
         
         # Deliberation variables
@@ -153,7 +153,6 @@ class DeliberativeAntAgent(AntAgent):
                     self.promising_pheromone_pos = self.identify_most_intense_pheromone(agent_position, pheromones_in_view)
 
                     action = self.knowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
-                    self.following_trail = True
 
                 else: # if we don't have high intensity pheromones in view...
                     action = self.explore_randomly() # we are still desiring to find food but need to pick an action! -> explore to find pheromones/foodpiles
@@ -245,6 +244,9 @@ class DeliberativeAntAgent(AntAgent):
         else:
             print(f"\tDesire: {DESIRE_MEANING[self.desire]}")
 
+    def reset_desire(self):
+        self.desire = None
+
     def knowledgeable_examine_promising_pheromones(self, agent_position, pheromones_in_view, colony_position):
 
         distances = np.array(self.promising_pheromone_pos) - np.array(agent_position)
@@ -281,6 +283,8 @@ class DeliberativeAntAgent(AntAgent):
                 self.desire = EXPLORE
                 action = self.explore_randomly()
                 return action
+            
+        self.following_trail = True
 
         action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
         return action
@@ -317,6 +321,7 @@ class DeliberativeAntAgent(AntAgent):
                 self.desire = EXPLORE
                 action = self.explore_randomly()
                 return action
+            
 
         action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
         return action
