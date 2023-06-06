@@ -64,20 +64,11 @@ class DeliberativeAntAgent(AntAgent):
     """
 
     def __init__(self, agent_id, n_agents, knowledgeable=True):
-        super(DeliberativeAntAgent, self).__init__(f"Deliberative Ant Agent")
-        self.agent_id = agent_id
-        self.n_agents = n_agents
-        self.knowledgeable = knowledgeable
-
+        super(DeliberativeAntAgent, self).__init__(f"Deliberative Ant Agent", agent_id, n_agents, knowledgeable)
+        
         # Deliberation variables
         self.beliefs = None
         self.desire = None
-
-        # Exploration variables
-        self.steps_exploring = 0
-        self.current_exploring_action = STAY
-        self.following_trail = False
-        self.promising_pheromone_pos = None
 
     def action(self) -> int:
 
@@ -99,13 +90,13 @@ class DeliberativeAntAgent(AntAgent):
         # CONTINUES WITH FOOD IN MOUTH?
 
         if(self.knowledgeable):
-            action_to_perform = self.knowledgeable_deliberative()
+            action_to_perform = self._knowledgeable_deliberative()
         else:
-            action_to_perform = self.unknowledgeable_deliberative()
+            action_to_perform = self._unknowledgeable_deliberative()
 
         return action_to_perform
 
-    def knowledgeable_deliberative(self): # The agent knows its own global position and the colony's position
+    def _knowledgeable_deliberative(self): # The agent knows its own global position and the colony's position
 
         agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food = self.beliefs_setup()
 
@@ -154,13 +145,13 @@ class DeliberativeAntAgent(AntAgent):
             else: # if we don't have a foodpile in view...
 
                 if(self.following_trail): # if we're already following a trail...
-                    action = self.examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
+                    action = self.knowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
 
                 elif(self.check_for_intense_pheromones_in_view(pheromones_in_view)): # check for high intensity pheromones
 
                     self.promising_pheromone_pos = self.identify_most_intense_pheromone(agent_position, pheromones_in_view)
 
-                    action = self.examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
+                    action = self.knowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
                     self.following_trail = True
 
                 else: # if we don't have high intensity pheromones in view...
@@ -172,7 +163,7 @@ class DeliberativeAntAgent(AntAgent):
 
         return action
 
-    def unknowledgeable_deliberative(self): # The agent does not know its own global position and the colony's position
+    def _unknowledgeable_deliberative(self): # The agent does not know its own global position and the colony's position
         
         agent_position, _, foodpiles_in_view, pheromones_in_view, colony_storage, has_food = self.beliefs_setup()
 
@@ -269,7 +260,7 @@ class DeliberativeAntAgent(AntAgent):
 
         return agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food
 
-    def examine_promising_pheromones(self, agent_position, pheromones_in_view, colony_position):
+    def knowledgeable_examine_promising_pheromones(self, agent_position, pheromones_in_view, colony_position):
 
         distances = np.array(self.promising_pheromone_pos) - np.array(agent_position)
         abs_distances = np.absolute(distances)
@@ -313,7 +304,7 @@ class DeliberativeAntAgent(AntAgent):
             action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
             return action
 
-def unknowledgeable_examine_promising_pheromones(self, agent_position, pheromones_in_view):
+    def unknowledgeable_examine_promising_pheromones(self, agent_position, pheromones_in_view):
 
         distances = np.array(self.promising_pheromone_pos) - np.array(agent_position)
         abs_distances = np.absolute(distances)
@@ -347,29 +338,7 @@ def unknowledgeable_examine_promising_pheromones(self, agent_position, pheromone
         action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
         return action
 
-
-def avoid_obstacles(self, action, agent_position, colony_position, foodpiles_in_view):
-
-        colony_index = self.find_relative_index(agent_position, colony_position)
-
-        # Go around fixed obstacles, like foodpiles and colony
-        if((action == 0 and (foodpiles_in_view[12 + 5] != 0 or colony_index == 12 + 5)) or
-            (action == 2 and (foodpiles_in_view[12 - 5] or colony_index == 12 - 5))): # foddpile is obstructing up/down
-            action = random.randrange(1, 4, 2) # gives odds (left or right)
-
-        elif((action == 1 and (foodpiles_in_view[12 - 1] != 0 or colony_index == 12 - 1)) or
-             (action == 3 and (foodpiles_in_view[12 + 1] or colony_index == 12 + 1))): # object is obstructing left/right
-            action = random.randrange(0, 3, 2) # gives evens (up or down)
-
-        elif((action == 5 and (foodpiles_in_view[12 + 5] != 0 or colony_index == 12 + 5)) or
-             (action == 7 and (foodpiles_in_view[12 - 5] or colony_index == 12 - 5))): # object is obstructing up_phero/down_phero
-            action = random.randrange(6, 9, 2) # gives odds (left phero or right phero)
-
-        elif((action == 6 and (foodpiles_in_view[12 - 1] != 0 or colony_index == 12 - 1)) or
-              (action == 8 and (foodpiles_in_view[12 + 1] or colony_index == 12 + 1))): # object is obstructing left_phero/right_phero
-            action = random.randrange(5, 8, 2) # gives evens (up phero or down phero)
-
-        return action
+    
 
 if __name__ == '__main__':
 

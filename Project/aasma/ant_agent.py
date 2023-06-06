@@ -2,16 +2,38 @@ import math
 import random
 import numpy as np
 from scipy.spatial.distance import cityblock
-from aasma import Agent
+from abc import ABC, abstractmethod
 
 N_ACTIONS = 11
 DOWN, LEFT, UP, RIGHT, STAY, DOWN_PHERO, LEFT_PHERO, UP_PHERO, RIGHT_PHERO, COLLECT_FOOD, DROP_FOOD = range(N_ACTIONS)
 
+class AntAgent(ABC):
 
-class AntAgent(Agent):
-
-    def __init__(self, name: str):
+    def __init__(self, name: str, agent_id, n_agents, knowledgeable):
         super(AntAgent, self).__init__(f"Ant Agent")
+        self.name = name
+        self.observation :np.ndarray = np.ndarray([])
+        self.agent_id = agent_id
+        self.n_agents = n_agents
+        self.n_actions = N_ACTIONS
+        self.knowledgeable = knowledgeable
+
+        # Exploration variables
+        self.steps_exploring = 0
+        self.current_exploring_action = STAY
+        self.following_trail = False
+        self.promising_pheromone_pos = None
+
+    def see(self, observation: np.ndarray):
+        self.observation = observation
+
+    @abstractmethod
+    def action(self) -> int:
+        raise NotImplementedError()
+    
+    # ################# #
+    # Auxiliary Methods #
+    # ################# #
 
     def find_global_pos(self, agent_pos, object_relative_position_index):
         
@@ -180,6 +202,28 @@ class AntAgent(Agent):
 
         return most_intense_pheromone_pos
 
+    def avoid_obstacles(self, action, agent_position, colony_position, foodpiles_in_view):
+
+        colony_index = self.find_relative_index(agent_position, colony_position)
+
+        # Go around fixed obstacles, like foodpiles and colony
+        if((action == 0 and (foodpiles_in_view[12 + 5] != 0 or colony_index == 12 + 5)) or
+            (action == 2 and (foodpiles_in_view[12 - 5] or colony_index == 12 - 5))): # foddpile is obstructing up/down
+            action = random.randrange(1, 4, 2) # gives odds (left or right)
+
+        elif((action == 1 and (foodpiles_in_view[12 - 1] != 0 or colony_index == 12 - 1)) or
+             (action == 3 and (foodpiles_in_view[12 + 1] or colony_index == 12 + 1))): # object is obstructing left/right
+            action = random.randrange(0, 3, 2) # gives evens (up or down)
+
+        elif((action == 5 and (foodpiles_in_view[12 + 5] != 0 or colony_index == 12 + 5)) or
+             (action == 7 and (foodpiles_in_view[12 - 5] or colony_index == 12 - 5))): # object is obstructing up_phero/down_phero
+            action = random.randrange(6, 9, 2) # gives odds (left phero or right phero)
+
+        elif((action == 6 and (foodpiles_in_view[12 - 1] != 0 or colony_index == 12 - 1)) or
+              (action == 8 and (foodpiles_in_view[12 + 1] or colony_index == 12 + 1))): # object is obstructing left_phero/right_phero
+            action = random.randrange(5, 8, 2) # gives evens (up phero or down phero)
+
+        return action
 
     # ############### #
     # Private Methods #
