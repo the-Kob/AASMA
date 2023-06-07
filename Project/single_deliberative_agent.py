@@ -99,7 +99,7 @@ class DeliberativeAntAgent(AntAgent):
     def _knowledgeable_deliberative(self): # The agent knows its own global position and the colony's position
 
         # BELIEFS
-        agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food = self.observation_setup()
+        agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food, other_agents_in_view = self.observation_setup()
 
         # DESIRES
         if(self.desire == None):
@@ -159,7 +159,7 @@ class DeliberativeAntAgent(AntAgent):
 
         # Avoid obstacles
         if(action != STAY and action != COLLECT_FOOD and action != COLLECT_FOOD):
-            action = self.avoid_obstacles(action, agent_position, colony_position, foodpiles_in_view)
+            action = self.avoid_obstacles(action, agent_position, colony_position, foodpiles_in_view, other_agents_in_view)
 
         return action
 

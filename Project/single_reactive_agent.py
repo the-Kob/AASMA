@@ -62,7 +62,7 @@ class ReactiveAntAgent(AntAgent):
         return action_to_perform
 
     def _knowledgeable_reactive(self):
-        agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food = self.observation_setup()
+        agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food, other_agents_in_view = self.observation_setup()
 
         if(has_food):
             if(self.check_if_destination_reached(agent_position, colony_position)):
@@ -86,7 +86,7 @@ class ReactiveAntAgent(AntAgent):
 
         # Avoid obstacles
         if(action != STAY and action != COLLECT_FOOD and action != COLLECT_FOOD):
-            action = self.avoid_obstacles(action, agent_position, colony_position, foodpiles_in_view)
+            action = self.avoid_obstacles(action, agent_position, colony_position, foodpiles_in_view, other_agents_in_view)
 
         return action
 

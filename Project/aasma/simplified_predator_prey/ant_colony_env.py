@@ -275,22 +275,25 @@ class AntColonyEnv(gym.Env):
 
             foodpiles_in_view_for_agent_i = observed_environment[agent_id][ : 25] # 25
             pheromones_in_view_for_agent_i = observed_environment[agent_id][25 : 50] # 25
-            colony_storage_in_view = observed_environment[agent_id][-2:-1] # 1
-            has_food_agent_i = observed_environment[agent_id][-1:] # 1
+            colony_storage_in_view = observed_environment[agent_id][50:51] # 1
+            has_food_agent_i = observed_environment[agent_id][51:52] # 1
+            other_agents_in_view = observed_environment[agent_id][52:] # 25
 
             # Concatenate information and add it to proper place 
             p1 = np.concatenate((agent_position, colony_position))
             p2 = np.concatenate((p1, foodpiles_in_view_for_agent_i))
             p3 = np.concatenate((p2, pheromones_in_view_for_agent_i))
             p4 = np.concatenate((p3, colony_storage_in_view))
-            agent_i_full_information = np.concatenate((p4, has_food_agent_i))
+            p5 = np.concatenate((p4, has_food_agent_i))
+            
+            agent_i_full_information = np.concatenate((p5, other_agents_in_view))
 
             if separated_full_information.size == 0:
                 separated_full_information = np.array([agent_i_full_information])
             else:
                 separated_full_information = np.append(separated_full_information, [agent_i_full_information], axis=0)
 
-        # separated_full_information[agent_1] = [agent_pos colony_pos 25*foodpiles 25*pheromones colony_capacity has_food]
+        # separated_full_information[agent_1] = [agent_pos colony_pos 25*foodpiles 25*pheromones colony_capacity has_food 25*other_agents]
         # separated_full_information[agent_id] = [separated_full_information[agent_1] separated_full_information[agent_2] ...]
 
         return separated_full_information
@@ -369,7 +372,7 @@ class AntColonyEnv(gym.Env):
                     if PRE_IDS['pheromone'] in self._full_obs[row][col]:
                         _pheromone_pos[row - (pos[0] - 2), col - (pos[1] - 2)] = self.pheromones_in_grid[row][col]  # get relative position for the pheromone loc.
 
-            # check if pheromones is in the view area
+            # check if colony is in the view area
             _colonies_storage = np.zeros(self.n_colonies)  # colony
             for row in range(max(0, pos[0] - 2), min(pos[0] + 2 + 1, self._grid_shape[0])):
                 for col in range(max(0, pos[1] - 2), min(pos[1] + 2 + 1, self._grid_shape[1])):
@@ -377,11 +380,20 @@ class AntColonyEnv(gym.Env):
                         colony_i = int(self._full_obs[row][col].strip('C')) - 1 # from C1 to 0
                         _colonies_storage[colony_i] = self.colonies_storage[colony_i] # get relative position for the colony loc.
 
+            #check if other agents are in the view area
+            _other_agents_pos = np.zeros(self._agent_view_mask)
+            for row in range(max(0, pos[0] - 2), min(pos[0] + 2 + 1, self._grid_shape[0])):
+                for col in range(max(0, pos[1] - 2), min(pos[1] + 2 + 1, self._grid_shape[1])):
+                    if PRE_IDS['agent'] in self._full_obs[row][col]:
+                        _other_agent_i = int(self._full_obs[row][col].strip('A')) - 1 # from A1 to 0    
+                        _other_agents_pos[row - (pos[0] - 2), col - (pos[1] - 2)] = self.has_food[_other_agent_i] # get relative position for the agent loc.
+
         
             _agent_i_obs = _foodpile_pos.flatten().tolist()  # adding foodpile pos in observable area
             _agent_i_obs += _pheromone_pos.flatten().tolist()  # adding pheromone pos in observable area
             _agent_i_obs += _colonies_storage.flatten().tolist()  # adding colonies pos in observable area
             _agent_i_obs += [self.has_food[agent_i]] # adding has_food flag in observable area
+            _agent_i_obs += _other_agents_pos.flatten().tolist() #adding neighbours positions to agent obs
 
             #_agent_i_obs += [self._step_count / self._max_steps]  # adding time
 
@@ -438,6 +450,12 @@ class AntColonyEnv(gym.Env):
         else:
             raise Exception('Action Not found!')
         
+        # Make sure we can't perform certain actions if we don't have/have food
+        if((move == 5 or move == 6 or move == 7 or move == 8 or move == 10) and self.has_food[agent_i] == 0):
+            next_pos = None
+        elif((move == 9) and self.has_food[agent_i] != 0):
+            next_pos = None
+        
         # For COLLECT_FOOD (9)
         # Decrement foodpile is done in step
         # Has food is changed to true in step
@@ -445,8 +463,6 @@ class AntColonyEnv(gym.Env):
         # For DROP_FOOD (10)
         # Increment colony storage is done in step
         # Has food is changed to false in step
-
-        #move, next_pos = self.__avoid_obstacles(move, curr_pos, next_pos)
 
         if next_pos is not None and self._is_cell_walkable(next_pos):
 

@@ -208,25 +208,25 @@ class AntAgent(ABC):
 
         return most_intense_pheromone_pos
 
-    def avoid_obstacles(self, action, agent_position, colony_position, foodpiles_in_view):
+    def avoid_obstacles(self, action, agent_position, colony_position, foodpiles_in_view, other_agents_in_view):
 
         colony_index = self.find_relative_index(agent_position, colony_position)
 
         # Go around fixed obstacles, like foodpiles and colony
-        if((action == 0 and (foodpiles_in_view[12 + 5] != 0 or colony_index == 12 + 5)) or
-            (action == 2 and (foodpiles_in_view[12 - 5] or colony_index == 12 - 5))): # foddpile is obstructing up/down
+        if((action == 0 and (foodpiles_in_view[12 + 5] != 0 or colony_index == 12 + 5 or other_agents_in_view[12 + 5] != 0)) or
+            (action == 2 and (foodpiles_in_view[12 - 5] or colony_index == 12 - 5 or other_agents_in_view[12 - 5] != 0))): # foddpile is obstructing up/down
             action = random.randrange(1, 4, 2) # gives odds (left or right)
 
-        elif((action == 1 and (foodpiles_in_view[12 - 1] != 0 or colony_index == 12 - 1)) or
-             (action == 3 and (foodpiles_in_view[12 + 1] or colony_index == 12 + 1))): # object is obstructing left/right
+        elif((action == 1 and (foodpiles_in_view[12 - 1] != 0 or colony_index == 12 - 1 or other_agents_in_view[12 - 1] != 0)) or
+             (action == 3 and (foodpiles_in_view[12 + 1] or colony_index == 12 + 1 or other_agents_in_view[12 + 1] != 0))): # object is obstructing left/right
             action = random.randrange(0, 3, 2) # gives evens (up or down)
 
-        elif((action == 5 and (foodpiles_in_view[12 + 5] != 0 or colony_index == 12 + 5)) or
-             (action == 7 and (foodpiles_in_view[12 - 5] or colony_index == 12 - 5))): # object is obstructing up_phero/down_phero
+        elif((action == 5 and (foodpiles_in_view[12 + 5] != 0 or colony_index == 12 + 5 or other_agents_in_view[12 + 5] != 0)) or
+             (action == 7 and (foodpiles_in_view[12 - 5] or colony_index == 12 - 5 or other_agents_in_view[12 - 5] != 0))): # object is obstructing up_phero/down_phero
             action = random.randrange(6, 9, 2) # gives odds (left phero or right phero)
 
-        elif((action == 6 and (foodpiles_in_view[12 - 1] != 0 or colony_index == 12 - 1)) or
-              (action == 8 and (foodpiles_in_view[12 + 1] or colony_index == 12 + 1))): # object is obstructing left_phero/right_phero
+        elif((action == 6 and (foodpiles_in_view[12 - 1] != 0 or colony_index == 12 - 1 or other_agents_in_view[12 - 1] != 0)) or
+              (action == 8 and (foodpiles_in_view[12 + 1] or colony_index == 12 + 1 or other_agents_in_view[12 + 1] != 0))): # object is obstructing left_phero/right_phero
             action = random.randrange(5, 8, 2) # gives evens (up phero or down phero)
 
         return action
@@ -241,7 +241,9 @@ class AntAgent(ABC):
         colony_storage = self.observation[54] # FOR ONLY 1 COLONY
         has_food = any([self.observation[55]])
 
-        return agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food
+        other_agents_in_view = self.observation[56:]
+
+        return agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food, other_agents_in_view
 
     # ############### #
     # Private Methods #
