@@ -37,10 +37,6 @@ def run_multi_agent(environment: Env, n_episodes: int) -> np.ndarray:
             terminals = [False for _ in range(len(agents))]
             observations = environment.reset()
 
-            for i in range(len(agents)):
-                if(isinstance(agents[i], DeliberativeAntAgent)):
-                    DeliberativeAntAgent.reset_desire(agents[i])
-
             while not all(terminals):
                 steps += 1
                 actions = np.zeros(len(agents))

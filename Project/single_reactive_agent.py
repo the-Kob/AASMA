@@ -152,10 +152,14 @@ class ReactiveAntAgent(AntAgent):
                 self.following_trail = False
                 action = self.explore_randomly()
                 return action
+                
 
         self.following_trail = True
 
         action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
+
+        if(action == STAY): # this avoids ants getting in infinite loop
+            action = self.explore_randomly()
         
         return action
 

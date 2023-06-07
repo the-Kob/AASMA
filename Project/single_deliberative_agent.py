@@ -147,6 +147,11 @@ class DeliberativeAntAgent(AntAgent):
 
                 if(self.following_trail): # if we're already following a trail...
                     action = self.knowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
+                    if(action == STAY):
+                        action = self.explore_randomly()
+                        print(agent_position)
+                        print(self.promising_pheromone_pos)
+                        input()
 
                 elif(self.check_for_intense_pheromones_in_view(pheromones_in_view)): # check for high intensity pheromones
 
@@ -287,6 +292,10 @@ class DeliberativeAntAgent(AntAgent):
         self.following_trail = True
 
         action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
+
+        if(action == STAY): # this avoids ants getting in infinite loop
+            action = self.explore_randomly()
+
         return action
 
     def unknowledgeable_examine_promising_pheromones(self, agent_position, pheromones_in_view):
