@@ -1,46 +1,84 @@
+import math
+import random
+import time
 import argparse
-
 import numpy as np
+from scipy.spatial.distance import cityblock
 from gym import Env
 
-from aasma import Agent
+from aasma.ant_agent import AntAgent
 from aasma.utils import compare_results
 from aasma.wrappers import SingleAgentWrapper
-from aasma.simplified_predator_prey import SimplifiedPredatorPrey
+from aasma.simplified_predator_prey import AntColonyEnv
 
+def run_single_agent(environment: Env, agent: AntAgent, n_episodes: int, agent_id: int) -> np.ndarray:
 
-class RandomAgent(Agent):
+    results = np.zeros(n_episodes)
 
-    def __init__(self, n_actions: int):
-        super(RandomAgent, self).__init__("Random Agent")
-        self.n_actions = n_actions
+    for episode in range(n_episodes):
+
+        print(f"Episode {episode}")
+
+        steps = 0
+        terminal = False
+        observation = environment.reset()
+        
+        while not terminal:
+            steps += 1
+            print(f"Timestep {steps}")
+            agent.see(observation)
+            action = agent.action()
+            next_observation, reward, terminal, info = environment.step(action)
+            environment.render()
+            time.sleep(opt.render_sleep_time)
+            observation = next_observation
+
+            print(f"\tAction: {environment.get_action_meanings()[action]}\n")
+            print(f"\tObservation: {observation}")
+
+        
+        environment.close()
+        results[episode] = steps
+
+    return results
+
+class RandomAntAgent(AntAgent):
+
+    def __init__(self, agent_id, n_agents, knowledgeable=True):
+        super(RandomAntAgent, self).__init__(f"Random Ant Agent", agent_id, n_agents, knowledgeable)
 
     def action(self) -> int:
         return np.random.randint(self.n_actions)
 
-
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--episodes", type=int, default=30)
+
+    parser.add_argument("--episodes", type=int, default=1)
+    parser.add_argument("--render-sleep-time", type=float, default=0.5)
     opt = parser.parse_args()
 
     # 1 - Setup environment
-    environment = SimplifiedPredatorPrey(
-        grid_shape=(7, 7),
-        n_agents=1, n_preys=1,
-        max_steps=100, required_captors=1
+    environment = AntColonyEnv(
+        grid_shape=(10, 10),
+        n_agents=1, 
+        max_steps=100,
+        n_foodpiles=3
     )
     environment = SingleAgentWrapper(environment, agent_id=0)
 
-    # 2 - Setup agent
-    agent = RandomAgent(environment.action_space.n)
+    # 2 - Setup agents
+    agents = [
+        RandomAntAgent(agent_id=0, n_agents=1, knowledgeable=True)
+    ]
 
-    # 3 - Evaluate agent
-    results = {
-        #agent.name: run_single_agent(environment, agent, opt.episodes)
-    }
+    # 3 - Evaluate agents
+    results = {}
+    agent_id = 0
+    for agent in agents:
+        result = run_single_agent(environment, agent, opt.episodes, agent_id)
+        results[agent.name] = result
+        agent_id += 1
 
     # 4 - Compare results
-    compare_results(results, title="Random Agent on 'Predator Prey' Environment", colors=["orange"])
-
+    #compare_results(results, title="Agents on 'Predator Prey' Environment", colors=["orange", "green"])

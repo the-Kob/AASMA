@@ -13,42 +13,54 @@ from single_reactive_agent import ReactiveAntAgent
 from single_deliberative_agent import DeliberativeAntAgent
 
 
-def run_multi_agent(environment: Env, agents: Sequence[AntAgent], n_episodes: int) -> np.ndarray:
-
-    results = np.zeros(n_episodes)
+def run_multi_agent(environment: Env, n_episodes: int) -> np.ndarray:
+    
+    results = {}
 
     for episode in range(n_episodes):
+        
+        teams = {
 
+            "Deliberative Team": [
+                DeliberativeAntAgent(agent_id=0, n_agents=4),
+                DeliberativeAntAgent(agent_id=1, n_agents=4),
+                DeliberativeAntAgent(agent_id=2, n_agents=4),
+                DeliberativeAntAgent(agent_id=3, n_agents=4),
+            ] 
+         
+        }
 
+        results_ep = np.zeros(n_episodes)
 
-        steps = 0
-        terminals = [False for _ in range(len(agents))]
-        observations = environment.reset()
+        for team, agents in teams.items():
+            steps = 0
+            terminals = [False for _ in range(len(agents))]
+            observations = environment.reset()
 
-        for i in range(len(agents)):
-            if(isinstance(DeliberativeAntAgent, agents[i])):
-                DeliberativeAntAgent.reset_desire(agents[i])
-
-        while not all(terminals):
-            steps += 1
-            actions = np.zeros(len(agents))
-            
             for i in range(len(agents)):
-                agents[i].see(observations[i])
-                actions[i] = agents[i].action()
-            
-            next_observations, rewards, terminals, info = environment.step(actions)
-            environment.render() # ENABLE/DISABLE THIS
-            time.sleep(opt.render_sleep_time)
-            observations = next_observations
+                if(isinstance(agents[i], DeliberativeAntAgent)):
+                    DeliberativeAntAgent.reset_desire(agents[i])
 
-        results[episode] = steps
-        print(episode)
+            while not all(terminals):
+                steps += 1
+                actions = np.zeros(len(agents))
+                
+                for i in range(len(agents)):
+                    agents[i].see(observations[i])
+                    actions[i] = agents[i].action()
+                
+                next_observations, rewards, terminals, info = environment.step(actions)
+                environment.render() # ENABLE/DISABLE THIS
+                time.sleep(opt.render_sleep_time)
+                observations = next_observations
 
-        environment.close()
+            results_ep[episode] = steps
+
+            environment.close()
+
+        results[team] = results_ep
 
     return results
-
 
 if __name__ == '__main__':
 
@@ -62,24 +74,12 @@ if __name__ == '__main__':
     environment = AntColonyEnv(grid_shape=(25, 25), n_agents=4, max_steps=100, n_foodpiles=5)
 
     # 2 - Setup the teams # ISOLATE IN FUNCTION (return agents)
-    teams = {
-
-        "Deliberative Team": [
-            DeliberativeAntAgent(agent_id=0, n_agents=4),
-            DeliberativeAntAgent(agent_id=1, n_agents=4),
-            DeliberativeAntAgent(agent_id=2, n_agents=4),
-            DeliberativeAntAgent(agent_id=3, n_agents=4),
-        ] 
-        
-    }
+    
 
     # FOR EPISODE, FOR TEAM (RUN 1 EPISODE FOR EVERY TEAM, THEN THE NEXT EPISODE)
 
     # 3 - Evaluate teams
-    results = {}
-    for team, agents in teams.items():
-        result = run_multi_agent(environment, agents, opt.episodes)
-        results[team] = result
+    results = run_multi_agent(environment, opt.episodes)
 
     # 4 - Compare results
     compare_results(
