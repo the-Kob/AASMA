@@ -70,8 +70,8 @@ class ReactiveAntAgent(AntAgent):
             else:
                 action = self.go_to_colony(agent_position, colony_position, has_food)
 
-            #self.following_trail = False
-            #self.promising_pheromone_pos = None
+            self.following_trail = False
+            self.promising_pheromone_pos = None
 
         elif(self.check_for_foodpiles_in_view(foodpiles_in_view)):
             action, closest_foodpile_pos = self.go_to_closest_foodpile(agent_position, foodpiles_in_view)

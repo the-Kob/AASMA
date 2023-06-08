@@ -39,11 +39,11 @@ def run_multi_agent(environment: Env, n_episodes: int) -> np.ndarray:
 
             while not all(terminals):
                 steps += 1
-                actions = np.zeros(len(agents))
                 
-                for i in range(len(agents)):
-                    agents[i].see(observations[i])
-                    actions[i] = agents[i].action()
+                for observations, agent in zip(observations, agents):
+                    agent.see(observations)
+
+                actions = [agent.action() for agent in agents]
                 
                 next_observations, rewards, terminals, info = environment.step(actions)
                 environment.render() # ENABLE/DISABLE THIS
