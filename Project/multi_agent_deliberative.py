@@ -11,6 +11,7 @@ from aasma import AntAgent
 
 from single_reactive_agent import ReactiveAntAgent
 from single_deliberative_agent import DeliberativeAntAgent
+from single_random_agent import RandomAntAgent
 
 
 def run_multi_agent(environment: Env, n_episodes: int) -> np.ndarray:
@@ -21,15 +22,36 @@ def run_multi_agent(environment: Env, n_episodes: int) -> np.ndarray:
         
         teams = {
 
+            "Random Team": [
+                RandomAntAgent(agent_id=0, n_agents=4),
+                RandomAntAgent(agent_id=1, n_agents=4),
+                RandomAntAgent(agent_id=2, n_agents=4),
+                RandomAntAgent(agent_id=3, n_agents=4),
+            ],
+
             "Deliberative Team": [
                 DeliberativeAntAgent(agent_id=0, n_agents=4),
                 DeliberativeAntAgent(agent_id=1, n_agents=4),
                 DeliberativeAntAgent(agent_id=2, n_agents=4),
                 DeliberativeAntAgent(agent_id=3, n_agents=4),
+            ],
+
+            "Reactive Team": [
+                ReactiveAntAgent(agent_id=0, n_agents=4),
+                ReactiveAntAgent(agent_id=1, n_agents=4),
+                ReactiveAntAgent(agent_id=2, n_agents=4),
+                ReactiveAntAgent(agent_id=3, n_agents=4),
+            ],
+
+            "Hybrid Team": [
+                ReactiveAntAgent(agent_id=0, n_agents=4),
+                ReactiveAntAgent(agent_id=1, n_agents=4),
+                DeliberativeAntAgent(agent_id=2, n_agents=4),
+                DeliberativeAntAgent(agent_id=3, n_agents=4),
             ] 
          
         }
-        
+
         print(f"Episode {episode}")
 
         results_ep = np.zeros(n_episodes)
