@@ -123,8 +123,7 @@ class AntColonyEnv(gym.Env):
             col = col[0]
             colonies_pos.append((col, row))
             
-        # At each time step, the agent knows its own position, the preys position (to deprecate) and the colony's position
-        # Observation: [1 7 5 0 8 5] <-> [col_agent row_agent col_prey row_prey col_colony row_colony]
+        # At each time step, the agent knows its own position and the colony's position
         features = np.array(agent_pos + colonies_pos).reshape(-1)
 
         return features
@@ -132,10 +131,10 @@ class AntColonyEnv(gym.Env):
     def reset(self):
         self._total_episode_reward = [0 for _ in range(self.n_agents)]
         self.agent_pos = {}
-        self.foodpile_pos = {} # added this
-        self.colonies_pos = {} # added this
+        self.foodpile_pos = {}
+        self.colonies_pos = {}
 
-        self.pheromones_pos = {} # added this
+        self.pheromones_pos = {}
 
         self.__init_full_obs()
         self._step_count = 0
@@ -145,21 +144,21 @@ class AntColonyEnv(gym.Env):
         self.heat_map = [[0 for _ in range(self._grid_shape[0])] for row in range(self._grid_shape[1])]
 
         # Reset foodpiles
-        self.foodpile_capacity = {_: random.randrange(4, self.initial_foodpile_capacity, 2) for _ in range(self.n_foodpiles)} # added this 
-        self.foodpile_depleted = [False for _ in range(self.n_foodpiles)] # added this
+        self.foodpile_capacity = {_: random.randrange(4, self.initial_foodpile_capacity, 2) for _ in range(self.n_foodpiles)} 
+        self.foodpile_depleted = [False for _ in range(self.n_foodpiles)]
         self.foodpiles_done = False
 
         # Reset pheromones in grid
         self.pheromones_in_grid = [[0 for _ in range(self._grid_shape[0])] for row in range(self._grid_shape[1])]
 
         # Reset colonies
-        self.colonies_storage = {_: self.initial_colonies_storage for _ in range(self.n_colonies)} # added this 
+        self.colonies_storage = {_: self.initial_colonies_storage for _ in range(self.n_colonies)} 
 
         # Reset food flag
         self.has_food = [0 for _ in range(self.n_agents)]
 
         # Concatenate observed environment to features
-        observed_environment = self.get_agent_obs() # 52 for each agent
+        observed_environment = self.get_agent_obs() # 77 for each agent
         features = self.simplified_features() # 2 for each agent + 2 for each colony
 
         separated_full_information = self.format_outgoing_observations(features, observed_environment)
