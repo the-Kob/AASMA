@@ -8,11 +8,11 @@ from aasma.utils import compare_results
 from aasma.simplified_predator_prey import AntColonyEnv
 
 from aasma import AntAgent
-
 from single_reactive_agent import ReactiveAntAgent
 from single_deliberative_agent import DeliberativeAntAgent
 from single_random_agent import RandomAntAgent
 
+SEED_MULTIPLIER = 1 # CHANGE THIS IF YOU WANT TO TEST A DIFFERENT SET OF MAPS!
 
 def run_multi_agent(environment: Env, n_episodes: int) -> np.ndarray:
     
@@ -59,6 +59,7 @@ def run_multi_agent(environment: Env, n_episodes: int) -> np.ndarray:
         for team, agents in teams.items():
             steps = 0
             terminals = [False for _ in range(len(agents))]
+            environment.seed((episode + 1) * SEED_MULTIPLIER) # we use this seed so for each episode the map is equal for every team
             observations = environment.reset()
 
             while not all(terminals):
@@ -70,8 +71,10 @@ def run_multi_agent(environment: Env, n_episodes: int) -> np.ndarray:
                 actions = [agent.action() for agent in agents]
                 
                 next_observations, rewards, terminals, info = environment.step(actions)
-                #environment.render() # ENABLE/DISABLE THIS
+
+                #environment.render() # ENABLE/DISABLE THIS TO VIEW ENVIRONMENT
                 #time.sleep(opt.render_sleep_time)
+
                 observations = next_observations
 
             environment.draw_heat_map(episode, team)
