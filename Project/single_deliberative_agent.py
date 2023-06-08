@@ -40,7 +40,7 @@ def run_single_agent(environment: Env, agent: AntAgent, n_episodes: int, agent_i
             print(f"Timestep {steps}")
             agent.see(observation)
             action = agent.action()
-            next_observation, reward, terminal, info = environment.step(action)
+            next_observation, reward, terminal, info = environment.step(action, episode, team='DelibeartiveAntAgent')
             environment.render()
             time.sleep(opt.render_sleep_time)
             observation = next_observation
@@ -348,7 +348,8 @@ if __name__ == '__main__':
         grid_shape=(10, 10),
         n_agents=1, 
         max_steps=100,
-        n_foodpiles=3
+        n_foodpiles=3,
+        n_episodes=opt.episodes
     )
     environment = SingleAgentWrapper(environment, agent_id=0)
 

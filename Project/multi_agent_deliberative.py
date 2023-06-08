@@ -45,8 +45,9 @@ def run_multi_agent(environment: Env, n_episodes: int) -> np.ndarray:
                     agents[i].see(observations[i])
                     actions[i] = agents[i].action()
                 
-                next_observations, rewards, terminals, info = environment.step(actions)
-                environment.render() # ENABLE/DISABLE THIS
+                next_observations, rewards, terminals, info = environment.step(actions, episode, team=team)
+                print(episode)
+                #environment.render() # ENABLE/DISABLE THIS
                 time.sleep(opt.render_sleep_time)
                 observations = next_observations
 
@@ -67,7 +68,7 @@ if __name__ == '__main__':
     opt = parser.parse_args()
 
     # 1 - Setup the environment
-    environment = AntColonyEnv(grid_shape=(25, 25), n_agents=4, max_steps=100, n_foodpiles=5)
+    environment = AntColonyEnv(grid_shape=(25, 25), n_agents=4, max_steps=100, n_foodpiles=5, n_episodes=opt.episodes)
 
     # 2 - Setup the teams # ISOLATE IN FUNCTION (return agents)
     

@@ -3,10 +3,9 @@ import logging
 import random
 
 import numpy as np
-
 logger = logging.getLogger(__name__)
 
-from PIL import ImageColor
+from PIL import ImageColor, Image
 import gym
 from gym import spaces
 from gym.utils import seeding
@@ -26,7 +25,7 @@ class AntColonyEnv(gym.Env):
     def __init__(self, grid_shape=(5, 5), n_agents=2, full_observable=False, penalty=-0.5, step_cost=-0.01, max_steps=100,
                  n_foodpiles=3, foodpile_capture_reward=5, initial_foodpile_capacity=8, foodpile_capacity_decrement=2,
                  n_colonies=1, initial_colonies_storage=100, colonies_storage_decrement=1, colonies_storage_increment=20, colonies_deposit_reward=10,
-                 initial_pheromone_intensity=5, food_pheromone_intensity=50, pheromone_evaporation_rate=1):
+                 initial_pheromone_intensity=5, food_pheromone_intensity=50, pheromone_evaporation_rate=1, n_episodes=100):
         
         self._grid_shape = grid_shape
         self.n_agents = n_agents
@@ -35,6 +34,9 @@ class AntColonyEnv(gym.Env):
         self._penalty = penalty
         self._step_cost = step_cost
         self._agent_view_mask = (5, 5)
+
+        # Heat map
+        self.heat_map = [[0 for _ in range(self._grid_shape[0])] for row in range(self._grid_shape[1])]
 
         # Foodpiles
         self.n_foodpiles = n_foodpiles
@@ -87,6 +89,8 @@ class AntColonyEnv(gym.Env):
         self._total_episode_reward = None
         self.seed()
 
+        self.n_episodes = n_episodes # added this
+
     def simplified_features(self):
 
         current_grid = np.array(self._full_obs)
@@ -136,6 +140,9 @@ class AntColonyEnv(gym.Env):
         self._step_count = 0
         self._agent_dones = [False for _ in range(self.n_agents)]
         
+        # Reset heat map
+        self.heat_map = [[0 for _ in range(self._grid_shape[0])] for row in range(self._grid_shape[1])]
+
         # Reset foodpiles
         self.foodpile_capacity = {_: random.randrange(4, self.initial_foodpile_capacity, 2) for _ in range(self.n_foodpiles)} # added this 
         self.foodpile_depleted = [False for _ in range(self.n_foodpiles)] # added this
@@ -158,7 +165,7 @@ class AntColonyEnv(gym.Env):
 
         return separated_full_information
 
-    def step(self, agents_action):
+    def step(self, agents_action, curr_episode, team="team"):
         self._step_count += 1
         rewards = [self._step_cost for _ in range(self.n_agents)]
 
@@ -166,6 +173,8 @@ class AntColonyEnv(gym.Env):
         for agent_i in range(self.n_agents):
             if(agents_action[agent_i] == 10 and self.has_food[agent_i] == 0):
                 rewards[agent_i] += self._penalty
+
+            self.heat_map[self.agent_pos[agent_i][0]][self.agent_pos[agent_i][1]] += 1
 
         # Decrease intensity of pheromones
         for row in range(self._grid_shape[0]):
@@ -241,6 +250,11 @@ class AntColonyEnv(gym.Env):
         if (self._step_count >= self._max_steps) or (False not in self.foodpile_depleted and not any(self.has_food)) or (1 in self.colonies_storage):
             for i in range(self.n_agents):
                 self._agent_dones[i] = True
+
+            # On the last time step, check if we are in the first, middle and last episodes to save the image
+            if(curr_episode == 0 or curr_episode == self.n_episodes/2 or curr_episode == self.n_episodes-1):
+                img_heat_map = Image.fromarray(self.render_heat_map(mode='rgb_array'))
+                img_heat_map.save('heat_map_' + team + '_' + str(curr_episode) + '.png')
 
         for i in range(self.n_agents):
             self._total_episode_reward[i] += rewards[i]
@@ -475,14 +489,14 @@ class AntColonyEnv(gym.Env):
 
                 self.__update_agent_view(agent_i) # this should always happen to prevent pheromone + NOOP => empy cell with agent in there ;(
 
-
                 if(move == 5 or move == 6 or move == 7 or move == 8):
                     self._full_obs[curr_pos[0]][curr_pos[1]] = PRE_IDS['pheromone']
                     self.pheromones_in_grid[curr_pos[0]][curr_pos[1]] += self.food_pheromone_intensity # currently stacks pheromones
-
+            
                 #if(move == 0 or move == 1 or move == 2 or move == 3):
                 #    self.pheromones_in_grid[curr_pos[0]][curr_pos[1]] += self.initial_pheromone_intensity # currently stacks pheromones
-        
+
+                #self.heat_map[curr_pos[0]][curr_pos[0]] += 1
 
     def __update_agent_view(self, agent_i):
         self._full_obs[self.agent_pos[agent_i][0]][self.agent_pos[agent_i][1]] = PRE_IDS['agent'] + str(agent_i + 1)
@@ -521,19 +535,41 @@ class AntColonyEnv(gym.Env):
             neighbours.append([pos[0], pos[1] - 1])
         return neighbours
 
+    def render_heat_map(self, mode='rgb_array'):
+        heat_map_img = copy.copy(self._base_img)
+        
+        for row in range(self._grid_shape[0]):
+            for col in range(self._grid_shape[1]):
+                # Draw heat map values
+                fill_cell(heat_map_img, [col, row], cell_size=CELL_SIZE, fill=color_lerp(HEAT_MAP_BASE_COLOR, HEAT_MAP_MAX_COLOR, self.heat_map[col][row]/25), margin=0.1)
+                write_cell_text(heat_map_img, text=str(self.heat_map[col][row]), pos=[col, row], cell_size=CELL_SIZE,
+                            fill='white', margin=0.4)
+        
+        heat_map_img = np.asarray(heat_map_img)
+        if mode == 'rgb_array':
+            return heat_map_img
+        elif mode == 'human':
+            from gym.envs.classic_control import rendering
+            if self.viewer is None:
+                self.viewer = rendering.SimpleImageViewer()
+            self.viewer.imshow(heat_map_img)
+            return self.viewer.isopen
+        else:
+            raise NotImplementedError 
+
     def render(self, mode='human'):
         img = copy.copy(self._base_img)
 
-        # Draw pheromones 
         for row in range(self._grid_shape[0]):
             for col in range(self._grid_shape[1]):
 
+                # Draw pheromones
                 if(self.pheromones_in_grid[col][row] >= self.pheromone_evaporation_rate):
                     pheromone_i = self.pheromones_in_grid[col][row]
                     pheromone_pos = [col, row]
                     fill_cell(img, pheromone_pos, cell_size=CELL_SIZE, fill=color_lerp(GROUND_COLOR, PHEROMONE_COLOR, pheromone_i/self.food_pheromone_intensity), margin=0.1)
                     write_cell_text(img, text=str(pheromone_i), pos=pheromone_pos, cell_size=CELL_SIZE,
-                            fill='white', margin=0.4)  
+                            fill='white', margin=0.4)
 
         # Agent neighborhood render
         for agent_i in range(self.n_agents):
@@ -606,6 +642,9 @@ PHEROMONE_COLOR = (10, 240, 240)
 
 GROUND_COLOR = (205, 133, 63)
 WALL_COLOR = 'black'
+
+HEAT_MAP_BASE_COLOR = (255, 255, 255)
+HEAT_MAP_MAX_COLOR = (255, 0, 0)
 
 CELL_SIZE = 35
 
