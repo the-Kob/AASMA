@@ -69,6 +69,10 @@ class ReactiveAntAgent(AntAgent):
                 action = DROP_FOOD
             else:
                 action = self.go_to_colony(agent_position, colony_position, has_food)
+
+            #self.following_trail = False
+            #self.promising_pheromone_pos = None
+
         elif(self.check_for_foodpiles_in_view(foodpiles_in_view)):
             action, closest_foodpile_pos = self.go_to_closest_foodpile(agent_position, foodpiles_in_view)
             self.following_trail = False
@@ -76,11 +80,14 @@ class ReactiveAntAgent(AntAgent):
 
             if(self.check_if_destination_reached(agent_position, closest_foodpile_pos)):
                 action = COLLECT_FOOD
+
         elif(self.following_trail):
             action = self.knowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
+
         elif(self.check_for_intense_pheromones_in_view(pheromones_in_view)):
             self.promising_pheromone_pos = self.identify_most_intense_pheromone(agent_position, pheromones_in_view)
             action = self.knowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
+
         else:
             action = self.explore_randomly()
 
