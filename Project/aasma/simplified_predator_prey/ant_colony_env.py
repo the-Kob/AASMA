@@ -44,6 +44,7 @@ class AntColonyEnv(gym.Env):
         self.foodpile_pos = {_: None for _ in range(self.n_foodpiles)}
         self.initial_foodpile_capacity = initial_foodpile_capacity
         self.foodpile_capacity = {_: random.randrange(4, self.initial_foodpile_capacity, 2) for _ in range(self.n_foodpiles)}
+        self.initial_foodpile_capacities = self.foodpile_capacity
         self.foodpile_capture_reward = foodpile_capture_reward
         self.foodpiles_done = False
         self.foodpile_capacity_decrement = foodpile_capacity_decrement
@@ -56,7 +57,7 @@ class AntColonyEnv(gym.Env):
         self.colonies_pos = {_: None for _ in range(self.n_colonies)}
         self.initial_colonies_storage = initial_colonies_storage
         self.colonies_storage_decrement = colonies_storage_decrement
-        self.colonies_storage = {_: self.initial_colonies_storage for _ in range(self.n_colonies)}  # added this
+        self.colonies_storage = {_: self.initial_colonies_storage for _ in range(self.n_colonies)}
         self.colonies_storage_increment = colonies_storage_increment
         self.colonies_deposit_reward = colonies_deposit_reward
 
@@ -174,6 +175,7 @@ class AntColonyEnv(gym.Env):
             if(agents_action[agent_i] == 10 and self.has_food[agent_i] == 0):
                 rewards[agent_i] += self._penalty
 
+            # Update heat map with current agent pos
             self.heat_map[self.agent_pos[agent_i][0]][self.agent_pos[agent_i][1]] += 1
 
         # Decrease intensity of pheromones
@@ -356,7 +358,6 @@ class AntColonyEnv(gym.Env):
                     break
             self._full_obs[self.colonies_pos[colony_i][0]][self.colonies_pos[colony_i][1]] = PRE_IDS['colony'] + str(colony_i + 1)
 
-
         self.__draw_base_img()
 
     def get_agent_obs(self):
@@ -487,11 +488,6 @@ class AntColonyEnv(gym.Env):
                 if(move == 5 or move == 6 or move == 7 or move == 8):
                     self._full_obs[curr_pos[0]][curr_pos[1]] = PRE_IDS['pheromone']
                     self.pheromones_in_grid[curr_pos[0]][curr_pos[1]] += self.food_pheromone_intensity # currently stacks pheromones
-            
-                #if(move == 0 or move == 1 or move == 2 or move == 3):
-                #    self.pheromones_in_grid[curr_pos[0]][curr_pos[1]] += self.initial_pheromone_intensity # currently stacks pheromones
-
-                #self.heat_map[curr_pos[0]][curr_pos[0]] += 1
 
     def __update_agent_view(self, agent_i):
         self._full_obs[self.agent_pos[agent_i][0]][self.agent_pos[agent_i][1]] = PRE_IDS['agent'] + str(agent_i + 1)
@@ -536,9 +532,21 @@ class AntColonyEnv(gym.Env):
         for row in range(self._grid_shape[0]):
             for col in range(self._grid_shape[1]):
                 # Draw heat map values
-                fill_cell(heat_map_img, [col, row], cell_size=CELL_SIZE, fill=color_lerp(HEAT_MAP_BASE_COLOR, HEAT_MAP_MAX_COLOR, self.heat_map[col][row]/25), margin=0.1)
-                write_cell_text(heat_map_img, text=str(self.heat_map[col][row]), pos=[col, row], cell_size=CELL_SIZE,
-                            fill='white', margin=0.4)
+                fill_cell(heat_map_img, [col, row], cell_size=CELL_SIZE, fill=color_lerp(HEAT_MAP_BASE_COLOR, HEAT_MAP_MAX_COLOR, self.heat_map[col][row]/20), margin=0.1)
+                if(self.heat_map[col][row]!=0):
+                    write_cell_text(heat_map_img, text=str(self.heat_map[col][row]), pos=[col, row], cell_size=CELL_SIZE, fill='white', margin=0.4)
+        
+        # Draw colonies position
+        for colony_i in range(self.n_colonies):
+            fill_cell(heat_map_img, self.colonies_pos[colony_i], cell_size=CELL_SIZE, fill=COLONY_COLOR, margin=0.1)
+            write_cell_text(heat_map_img, text="C" + str(colony_i), pos=self.colonies_pos[colony_i], cell_size=CELL_SIZE, fill='white', margin=0.4)
+
+        # Draw foodpiles position
+        for foodpile_i in range(self.n_foodpiles):
+            fill_cell(heat_map_img, self.foodpile_pos[foodpile_i], cell_size=CELL_SIZE, fill=FOOD_COLOR, margin=0.1)
+            write_cell_text(heat_map_img, text=str(self.initial_foodpile_capacities[foodpile_i]), pos=self.foodpile_pos[foodpile_i], cell_size=CELL_SIZE,
+                               fill='white', margin=0.4)
+
         
         heat_map_img = np.asarray(heat_map_img)
         if mode == 'rgb_array':
@@ -586,8 +594,6 @@ class AntColonyEnv(gym.Env):
         for foodpile_i in range(self.n_foodpiles):
             if (self.foodpile_depleted[foodpile_i] == False):
                 fill_cell(img, self.foodpile_pos[foodpile_i], cell_size=CELL_SIZE, fill=FOOD_COLOR, margin=0.1)
-                #write_cell_text(img, text=str(foodpile_i + 1), pos=self.foodpile_pos[foodpile_i], cell_size=CELL_SIZE,
-                #                fill='white', margin=0.4)
 
                 write_cell_text(img, text=str(self.foodpile_capacity[foodpile_i]), pos=self.foodpile_pos[foodpile_i], cell_size=CELL_SIZE,
                                fill='white', margin=0.4)
@@ -645,7 +651,7 @@ PHEROMONE_COLOR = (10, 240, 240)
 GROUND_COLOR = (205, 133, 63)
 WALL_COLOR = 'black'
 
-HEAT_MAP_BASE_COLOR = (255, 255, 255)
+HEAT_MAP_BASE_COLOR = (205, 133, 63)
 HEAT_MAP_MAX_COLOR = (255, 0, 0)
 
 CELL_SIZE = 35

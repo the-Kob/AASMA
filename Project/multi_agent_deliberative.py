@@ -29,8 +29,8 @@ def run_multi_agent(environment: Env, n_episodes: int) -> np.ndarray:
             ] 
          
         }
-
-        print(episode)
+        
+        print(f"Episode {episode}")
 
         results_ep = np.zeros(n_episodes)
 
