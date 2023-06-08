@@ -48,7 +48,7 @@ class RandomAntAgent(AntAgent):
         super(RandomAntAgent, self).__init__(f"Random Ant Agent", agent_id, n_agents, knowledgeable)
 
     def action(self) -> int:
-        return np.random.randint(self.n_actions)
+        return np.random.randint(11)
 
 if __name__ == '__main__':
 

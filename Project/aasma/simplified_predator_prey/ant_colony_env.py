@@ -246,7 +246,7 @@ class AntColonyEnv(gym.Env):
             if(self.colonies_storage[colony_i] > 1):
                 self.colonies_storage[colony_i] -= self.colonies_storage_decrement # We consider 1 to be the lowest food capacity possible (so 0 can mean ants can't see the colony)
                 
-        # If we have raeched max steps, if every foodpile has been depleted (and the agents are not holding food), if a colony reaches min capacity, we should also stop
+        # If we have reached max steps, if every foodpile has been depleted (and the agents are not holding food), if a colony reaches min capacity, we should also stop
         if (self._step_count >= self._max_steps) or (False not in self.foodpile_depleted and not any(self.has_food)) or (1 in self.colonies_storage):
             for i in range(self.n_agents):
                 self._agent_dones[i] = True
@@ -261,7 +261,7 @@ class AntColonyEnv(gym.Env):
 
         if (False not in self.foodpile_depleted): self.foodpiles_done = True
 
-        observed_environment = self.get_agent_obs() # 52 for each agent
+        observed_environment = self.get_agent_obs() # 77 for each agent
         features = self.simplified_features() # 2 for each agent + 2 for each colony
 
         separated_full_information = self.format_outgoing_observations(features, observed_environment)

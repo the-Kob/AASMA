@@ -30,6 +30,8 @@ def run_multi_agent(environment: Env, n_episodes: int) -> np.ndarray:
          
         }
 
+        print(episode)
+
         results_ep = np.zeros(n_episodes)
 
         for team, agents in teams.items():
@@ -46,9 +48,8 @@ def run_multi_agent(environment: Env, n_episodes: int) -> np.ndarray:
                 actions = [agent.action() for agent in agents]
                 
                 next_observations, rewards, terminals, info = environment.step(actions, episode, team=team)
-                print(episode)
                 #environment.render() # ENABLE/DISABLE THIS
-                time.sleep(opt.render_sleep_time)
+                #time.sleep(opt.render_sleep_time)
                 observations = next_observations
 
             results_ep[episode] = steps
@@ -64,7 +65,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--episodes", type=int, default=100) # CHANGE THIS (n_episodes)
-    parser.add_argument("--render-sleep-time", type=float, default=0.1)
+    #parser.add_argument("--render-sleep-time", type=float, default=0.1)
     opt = parser.parse_args()
 
     # 1 - Setup the environment
