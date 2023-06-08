@@ -165,7 +165,7 @@ class AntColonyEnv(gym.Env):
 
         return separated_full_information
 
-    def step(self, agents_action, curr_episode, team="team"):
+    def step(self, agents_action):
         self._step_count += 1
         rewards = [self._step_cost for _ in range(self.n_agents)]
 
@@ -250,11 +250,6 @@ class AntColonyEnv(gym.Env):
         if (self._step_count >= self._max_steps) or (False not in self.foodpile_depleted and not any(self.has_food)) or (1 in self.colonies_storage):
             for i in range(self.n_agents):
                 self._agent_dones[i] = True
-
-            # On the last time step, check if we are in the first, middle and last episodes to save the image
-            if(curr_episode == 0 or curr_episode == self.n_episodes/2 or curr_episode == self.n_episodes-1):
-                img_heat_map = Image.fromarray(self.render_heat_map(mode='rgb_array'))
-                img_heat_map.save('heat_map_' + team + '_' + str(curr_episode) + '.png')
 
         for i in range(self.n_agents):
             self._total_episode_reward[i] += rewards[i]
@@ -622,6 +617,13 @@ class AntColonyEnv(gym.Env):
                 self.viewer = rendering.SimpleImageViewer()
             self.viewer.imshow(img)
             return self.viewer.isopen
+        
+
+    def draw_heat_map(self, curr_episode, team):
+        # Check if we are in the first, middle and last episodes to save the heat map
+            if(curr_episode == 0 or curr_episode == self.n_episodes/2 or curr_episode == self.n_episodes-1):
+                img_heat_map = Image.fromarray(self.render_heat_map(mode='rgb_array'))
+                img_heat_map.save('heat_map_' + team + '_' + str(curr_episode) + '.png')
 
     def seed(self, n=None):
         self.np_random, seed = seeding.np_random(n)

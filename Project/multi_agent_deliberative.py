@@ -47,10 +47,12 @@ def run_multi_agent(environment: Env, n_episodes: int) -> np.ndarray:
 
                 actions = [agent.action() for agent in agents]
                 
-                next_observations, rewards, terminals, info = environment.step(actions, episode, team=team)
+                next_observations, rewards, terminals, info = environment.step(actions)
                 #environment.render() # ENABLE/DISABLE THIS
                 #time.sleep(opt.render_sleep_time)
                 observations = next_observations
+
+            environment.draw_heat_map(episode, team)
 
             results_ep[episode] = steps
 
@@ -70,11 +72,6 @@ if __name__ == '__main__':
 
     # 1 - Setup the environment
     environment = AntColonyEnv(grid_shape=(25, 25), n_agents=4, max_steps=100, n_foodpiles=5, n_episodes=opt.episodes)
-
-    # 2 - Setup the teams # ISOLATE IN FUNCTION (return agents)
-    
-
-    # FOR EPISODE, FOR TEAM (RUN 1 EPISODE FOR EVERY TEAM, THEN THE NEXT EPISODE)
 
     # 3 - Evaluate teams
     results = run_multi_agent(environment, opt.episodes)

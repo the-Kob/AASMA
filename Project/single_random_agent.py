@@ -11,11 +11,14 @@ from aasma.utils import compare_results
 from aasma.wrappers import SingleAgentWrapper
 from aasma.simplified_predator_prey import AntColonyEnv
 
-def run_single_agent(environment: Env, agent: AntAgent, n_episodes: int, agent_id: int) -> np.ndarray:
+def run_single_agent(environment: Env, n_episodes: int) -> np.ndarray:
 
     results = np.zeros(n_episodes)
 
     for episode in range(n_episodes):
+
+        # Setup agent
+        agent = RandomAntAgent(agent_id=0, n_agents=1, knowledgeable=True)
 
         print(f"Episode {episode}")
 
@@ -36,7 +39,9 @@ def run_single_agent(environment: Env, agent: AntAgent, n_episodes: int, agent_i
             print(f"\tAction: {environment.get_action_meanings()[action]}\n")
             print(f"\tObservation: {observation}")
 
-        
+
+        environment.draw_heat_map(episode, "RandomAntAgent")
+ 
         environment.close()
         results[episode] = steps
 
@@ -55,10 +60,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--episodes", type=int, default=1)
-    parser.add_argument("--render-sleep-time", type=float, default=0.5)
+    parser.add_argument("--render-sleep-time", type=float, default=0.01)
     opt = parser.parse_args()
 
-    # 1 - Setup environment
+    # Setup environment
     environment = AntColonyEnv(
         grid_shape=(10, 10),
         n_agents=1, 
@@ -67,18 +72,6 @@ if __name__ == '__main__':
     )
     environment = SingleAgentWrapper(environment, agent_id=0)
 
-    # 2 - Setup agents
-    agents = [
-        RandomAntAgent(agent_id=0, n_agents=1, knowledgeable=True)
-    ]
 
-    # 3 - Evaluate agents
-    results = {}
-    agent_id = 0
-    for agent in agents:
-        result = run_single_agent(environment, agent, opt.episodes, agent_id)
-        results[agent.name] = result
-        agent_id += 1
+    results = run_single_agent(environment, opt.episodes)
 
-    # 4 - Compare results
-    #compare_results(results, title="Agents on 'Predator Prey' Environment", colors=["orange", "green"])

@@ -23,11 +23,14 @@ DESIRE_MEANING = {
     2: "FIND_FOODPILE"
 }
 
-def run_single_agent(environment: Env, agent: AntAgent, n_episodes: int, agent_id: int) -> np.ndarray:
+def run_single_agent(environment: Env, n_episodes: int) -> np.ndarray:
 
     results = np.zeros(n_episodes)
 
     for episode in range(n_episodes):
+
+        # Setup agent
+        agent = DeliberativeAntAgent(agent_id=0, n_agents=1, knowledgeable=True)
 
         print(f"Episode {episode}")
 
@@ -40,16 +43,17 @@ def run_single_agent(environment: Env, agent: AntAgent, n_episodes: int, agent_i
             print(f"Timestep {steps}")
             agent.see(observation)
             action = agent.action()
-            next_observation, reward, terminal, info = environment.step(action, episode, team='DelibeartiveAntAgent')
+            next_observation, reward, terminal, info = environment.step(action)
             environment.render()
             time.sleep(opt.render_sleep_time)
             observation = next_observation
 
-            #DeliberativeAntAgent.express_desire(agent)
+            DeliberativeAntAgent.express_desire(agent)
             print(f"\tAction: {environment.get_action_meanings()[action]}\n")
             print(f"\tObservation: {observation}")
 
-        
+        environment.draw_heat_map(episode, "DeliberativeAntAgent")
+
         environment.close()
         results[episode] = steps
 
@@ -149,9 +153,6 @@ class DeliberativeAntAgent(AntAgent):
                     action = self.knowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
                     if(action == STAY):
                         action = self.explore_randomly()
-                        print(agent_position)
-                        print(self.promising_pheromone_pos)
-                        input()
 
                 elif(self.check_for_intense_pheromones_in_view(pheromones_in_view)): # check for high intensity pheromones
 
@@ -249,9 +250,6 @@ class DeliberativeAntAgent(AntAgent):
         else:
             print(f"\tDesire: {DESIRE_MEANING[self.desire]}")
 
-    def reset_desire(self):
-        self.desire = None
-
     def knowledgeable_examine_promising_pheromones(self, agent_position, pheromones_in_view, colony_position):
 
         distances = np.array(self.promising_pheromone_pos) - np.array(agent_position)
@@ -340,10 +338,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--episodes", type=int, default=1)
-    parser.add_argument("--render-sleep-time", type=float, default=0.5)
+    parser.add_argument("--render-sleep-time", type=float, default=0.01)
     opt = parser.parse_args()
 
-    # 1 - Setup environment
+    # Setup environment
     environment = AntColonyEnv(
         grid_shape=(10, 10),
         n_agents=1, 
@@ -351,23 +349,11 @@ if __name__ == '__main__':
         n_foodpiles=3,
         n_episodes=opt.episodes
     )
+
     environment = SingleAgentWrapper(environment, agent_id=0)
 
-    # 2 - Setup agents
-    agents = [
-        DeliberativeAntAgent(agent_id=0, n_agents=1, knowledgeable=True)
-    ]
-
-    # 3 - Evaluate agents
-    results = {}
-    agent_id = 0
-    for agent in agents:
-        result = run_single_agent(environment, agent, opt.episodes, agent_id)
-        results[agent.name] = result
-        agent_id += 1
-
-    # 4 - Compare results
-    #compare_results(results, title="Agents on 'Predator Prey' Environment", colors=["orange", "green"])
+    # Run single ant
+    results = run_single_agent(environment, opt.episodes)
 
 
     
