@@ -264,7 +264,7 @@ class AntColonyEnv(gym.Env):
 
         # [agent_pos colony_pos 25*foodpiles 25*pheromones colony_capacity has_food]
 
-        return separated_full_information, rewards, self._agent_dones, {'foodpiles_done': self.foodpiles_done}
+        return separated_full_information, rewards, self._agent_dones, {'foodpiles_done': self.foodpiles_done, 'colony_storage': self.colonies_storage[0]}
 
     def format_outgoing_observations(self, features, observed_environment):
 
