@@ -656,7 +656,7 @@ class AntColonyEnv(gym.Env):
         # Check if we are in the first, middle and last episodes to save the heat map
             if(curr_episode == 0 or curr_episode == self.n_episodes/2 or curr_episode == self.n_episodes-1):
                 img_heat_map = Image.fromarray(self.render_heat_map(mode='rgb_array'))
-                img_heat_map.save('heat_map_' + team + '_' + str(curr_episode) + '.png')
+                img_heat_map.save('images/heat_map_' + team + '_' + str(curr_episode) + '.png')
 
     def seed(self, n=None):
         self.np_random, seed = seeding.np_random(n)
