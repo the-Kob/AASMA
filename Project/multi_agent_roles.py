@@ -100,6 +100,7 @@ class RoleAgent(AntAgent):
         self.role_assign_period = role_assign_period
         self.curr_role = None
         self.steps_counter = 0
+        self.desire = None
 
     
 
@@ -111,7 +112,7 @@ class RoleAgent(AntAgent):
 
 
             for other_agent_i in range(len(other_agents_indices)):
-                other_agent_i_position = DeliberativeAntAgent.find_global_pos(agent_position, other_agents_indices[other_agent_i])
+                other_agent_i_position = self.find_global_pos(agent_position, other_agents_indices[other_agent_i])
                 other_agents_positions[other_agent_i * 2] = other_agent_i_position[0]
                 other_agents_positions[other_agent_i * 2 + 1] = other_agent_i_position[1]
 
@@ -148,7 +149,7 @@ class RoleAgent(AntAgent):
             # 
             closest_ant = self.closest_carrying_food_ant(agent_position, other_agents_in_view) 
             if(closest_ant == None):
-                potential = 0
+                potential = -100
             else:
                 potential = - manhattan_distance(agent_position,closest_ant)
 
@@ -216,14 +217,21 @@ class RoleAgent(AntAgent):
 
         self.steps_counter += 1
         action = self.choose_action()
+        print (f"Action {action}")
 
         return action
 
     def choose_action(self):
-        if (self.curr_role == 0 and self.has_food == 0):
-            direction_to_go = DeliberativeAntAgent.direction_to_go(self.agent_position, self.closest_carrying_food_ant(self.agent_position, self.other_agents_in_view), False, 0)
-            if DeliberativeAntAgent.check_if_destination_reached(self.agent_position, direction_to_go):
+        print(f"desire: {self.desire}")
+        agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food, other_agents_in_view = self.observation_setup()
+        if (self.curr_role == 0 and has_food == 0):
+            direction_to_go =self.direction_to_go(agent_position, self.closest_carrying_food_ant(agent_position, other_agents_in_view), False, 0)
+            if self.check_if_destination_reached(agent_position, direction_to_go):
                 return COLLECT_FOOD
+            
+        elif (self.curr_role == 1):
+           
+            return DeliberativeAntAgent._knowledgeable_deliberative(self)
             
 
     def get_target_adj_locs(self, loc) -> list():
