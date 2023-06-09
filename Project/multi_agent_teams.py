@@ -72,8 +72,11 @@ def run_multi_agent(environment: Env, n_episodes: int) -> np.ndarray:
                 
                 next_observations, rewards, terminals, info = environment.step(actions)
 
-                #environment.render() # ENABLE/DISABLE THIS TO VIEW ENVIRONMENT
-                #time.sleep(opt.render_sleep_time)
+                environment.render() # ENABLE/DISABLE THIS TO VIEW ENVIRONMENT
+
+                if(steps == 1):
+                    input()
+                time.sleep(opt.render_sleep_time)
 
                 observations = next_observations
 
@@ -92,11 +95,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--episodes", type=int, default=100) # CHANGE THIS (n_episodes)
-    #parser.add_argument("--render-sleep-time", type=float, default=0.1)
+    parser.add_argument("--render-sleep-time", type=float, default=0.1)
     opt = parser.parse_args()
 
     # 1 - Setup the environment
-    environment = AntColonyEnv(grid_shape=(25, 25), n_agents=4, max_steps=100, n_foodpiles=5, n_episodes=opt.episodes)
+    environment = AntColonyEnv(grid_shape=(16, 16), n_agents=4, max_steps=100, n_foodpiles=4, n_episodes=opt.episodes)
 
     # 3 - Evaluate teams
     results = run_multi_agent(environment, opt.episodes)
