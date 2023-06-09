@@ -112,7 +112,7 @@ if __name__ == '__main__':
     parser.add_argument("--episodes", type=int, default=100) # CHANGE THIS (n_episodes)
     parser.add_argument("--steps", type=int, default=100) # CHANGE THIS (max_steps)
     parser.add_argument("--render-sleep-time", type=float, default=0.1)
-    opt = parser.parse_args()
+    opt = parser.parse_args()# Autonomous Agents & Multi-Agent Systems
 
     # 1 - Setup the environment
     environment = AntColonyEnv(grid_shape=(16, 16), n_agents=4, max_steps=opt.steps, n_foodpiles=4, n_episodes=opt.episodes, pheromone_evaporation_rate=2)
