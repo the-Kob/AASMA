@@ -96,7 +96,7 @@ if __name__ == '__main__':
     opt = parser.parse_args()
 
     # 1 - Setup the environment
-    environment = AntColonyEnv(grid_shape=(25, 25), n_agents=4, max_steps=100, n_foodpiles=5, n_episodes=opt.episodes)
+    environment = AntColonyEnv(grid_shape=(16, 16), n_agents=4, max_steps=100, n_foodpiles=4, n_episodes=opt.episodes)
 
     # 3 - Evaluate teams
     results = run_multi_agent(environment, opt.episodes)
