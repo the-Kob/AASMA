@@ -16,8 +16,11 @@ SEED_MULTIPLIER = 1 # CHANGE THIS IF YOU WANT TO TEST A DIFFERENT SET OF MAPS!
 
 def run_multi_agent(environment: Env, n_episodes: int) -> np.ndarray:
     
-    results = {}
-
+    results = {"Random Team" : np.zeros(n_episodes), 
+               "Deliberative Team": np.zeros(n_episodes), 
+               "Reactive Team": np.zeros(n_episodes), 
+               "Hybrid Team": np.zeros(n_episodes)}
+    
     for episode in range(n_episodes):
         
         teams = {
@@ -54,8 +57,6 @@ def run_multi_agent(environment: Env, n_episodes: int) -> np.ndarray:
 
         print(f"Episode {episode}")
 
-        results_ep = np.zeros(n_episodes)
-
         for team, agents in teams.items():
             steps = 0
             terminals = [False for _ in range(len(agents))]
@@ -76,14 +77,11 @@ def run_multi_agent(environment: Env, n_episodes: int) -> np.ndarray:
                 #time.sleep(opt.render_sleep_time)
 
                 observations = next_observations
-
+            
             environment.draw_heat_map(episode, team)
-
-            results_ep[episode] = steps
+            results[team][episode] = steps
 
             environment.close()
-
-        results[team] = results_ep
 
     return results
 
@@ -96,7 +94,7 @@ if __name__ == '__main__':
     opt = parser.parse_args()
 
     # 1 - Setup the environment
-    environment = AntColonyEnv(grid_shape=(16, 16), n_agents=4, max_steps=100, n_foodpiles=4, n_episodes=opt.episodes)
+    environment = AntColonyEnv(grid_shape=(16, 16), n_agents=4, max_steps=200, n_foodpiles=4, n_episodes=opt.episodes)
 
     # 3 - Evaluate teams
     results = run_multi_agent(environment, opt.episodes)
@@ -105,6 +103,6 @@ if __name__ == '__main__':
     compare_results(
         results,
         title="Teams Comparison on 'Ant Colony' Environment",
-        colors=["orange", "green", "blue"]
+        colors=["orange", "green", "blue", "red"]
     )
 
