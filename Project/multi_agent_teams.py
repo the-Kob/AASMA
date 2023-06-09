@@ -110,7 +110,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--episodes", type=int, default=100) # CHANGE THIS (n_episodes)
-    parser.add_argument("--steps", type=int, default=200) # CHANGE THIS (max_steps)
+    parser.add_argument("--steps", type=int, default=100) # CHANGE THIS (max_steps)
     parser.add_argument("--render-sleep-time", type=float, default=0.1)
     opt = parser.parse_args()
 

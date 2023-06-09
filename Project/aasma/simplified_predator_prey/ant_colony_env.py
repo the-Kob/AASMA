@@ -262,7 +262,7 @@ class AntColonyEnv(gym.Env):
                 if(self.has_food[agent_i] != 0 and action == 10): # if one of the surrounding agents decides to drop food...
 
                     # Increase colony storage
-                    self.colonies_storage[colony_i] += self.colonies_storage_increment
+                    self.colonies_storage[colony_i] += self.has_food[agent_i] * 10
 
                     # Rewards agent which got food
                     rewards[agent_i] += self.colonies_deposit_reward
