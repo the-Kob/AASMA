@@ -1,5 +1,3 @@
-import math
-import random
 import time
 import argparse
 import numpy as np

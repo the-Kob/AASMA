@@ -15,6 +15,7 @@ class AntAgent(ABC):
         self.n_agents = n_agents
         self.n_actions = N_ACTIONS
         self.knowledgeable = knowledgeable
+        self.steps_carrying_food = 0 
 
         # Exploration variables
         self.steps_exploring = 0
@@ -32,8 +33,6 @@ class AntAgent(ABC):
     # ################# #
     # Auxiliary Methods #
     # ################# #
-
-    
 
     def find_global_pos(self, agent_pos, object_relative_position_index):
         
@@ -228,7 +227,6 @@ class AntAgent(ABC):
 
         return self.direction_to_go(agent_position, closest_ant_position, False, 0), closest_ant_position
 
-    
     def identify_most_intense_pheromone(self, agent_position, pheromones_in_view):
 
         most_intense_pheromone_index = np.argmax(pheromones_in_view)
@@ -308,7 +306,7 @@ class AntAgent(ABC):
         if distances[1] > 0:
             if(has_food):
                 if (food_quantity == 2):
-                    if (self.steps_carrying_food % 2 == 0):
+                    if ((not self.steps_carrying_food == 0) and self.steps_carrying_food % 2 == 0):
                         return STAY
                     else:  
                         return DOWN_PHERO
@@ -327,3 +325,13 @@ class AntAgent(ABC):
                 return UP
         else:
             return STAY
+        
+    def manhattan_distance(point1, point2):
+        distance = 0
+
+        for x1, x2 in zip(point1, point2):
+            difference = x2 - x1
+            absolute_difference = abs(difference)
+            distance += absolute_difference
+
+        return distance

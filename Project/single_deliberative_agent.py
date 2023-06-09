@@ -92,17 +92,12 @@ class DeliberativeAntAgent(AntAgent):
 
         action_to_perform = self._knowledgeable_deliberative()
 
-        #if(self.knowledgeable):
-        #    action_to_perform = self._knowledgeable_deliberative()
-        #else:
-        #    action_to_perform = self._unknowledgeable_deliberative()
-
         return action_to_perform
 
     def _knowledgeable_deliberative(self): # The agent knows its own global position and the colony's position
 
         # BELIEFS
-        agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food, other_agents_in_view = self.observation_setup()
+        agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food, food_quantity, other_agents_in_view = self.observation_setup()
 
         # DESIRES
         if(self.desire == None):
@@ -117,7 +112,7 @@ class DeliberativeAntAgent(AntAgent):
         # INTENTIONS
         if(self.desire == GO_TO_COLONY):
             if(not self.check_if_destination_reached(agent_position, colony_position)): # if the agent hasn't reached it yet...
-                action = self.go_to_colony(agent_position, colony_position, has_food) # move there
+                action = self.go_to_colony(agent_position, colony_position, has_food, food_quantity) # move there
 
             else: # if we have reached it already...
                 if(has_food): # drop any food, in case the agent is carrying any
@@ -163,82 +158,11 @@ class DeliberativeAntAgent(AntAgent):
                     action = self.explore_randomly() # we are still desiring to find food but need to pick an action! -> explore to find pheromones/foodpiles
 
         # Avoid obstacles
-        if(action != STAY and action != COLLECT_FOOD and action != COLLECT_FOOD):
+        if(action != STAY and action != COLLECT_FOOD):
             action = self.avoid_obstacles(action, agent_position, colony_position, foodpiles_in_view, other_agents_in_view)
 
         return action
 
-    def _unknowledgeable_deliberative(self): # The agent does not know its own global position and the colony's position
-        
-        # BELIEFS
-        agent_position, _, foodpiles_in_view, pheromones_in_view, colony_storage, has_food = self.observation_setup()
-
-        # DESIRES
-        if(self.desire == None):
-            if(has_food): # has food -> go to colony 
-                self.desire = GO_TO_COLONY 
-            else: # does not have food
-                if(colony_storage < 100): # colony food storage is low -> find foodpile
-                    self.desire = FIND_FOODPILE
-                else: # colony food storage is high -> explore
-                    self.desire = EXPLORE
-
-        # INTENTIONS
-        if(self.desire == GO_TO_COLONY):
-            if(colony_storage == 0): # if the agent hasn't seen it yet...
-                action = self.explore_randomly()
-
-            else: # only if it is in our field of view...
-                if(not self.check_if_destination_reached(agent_position, _)):
-                    action = self.direction_to_go(agent_position, _, has_food)
-                else:
-                    if(has_food): # drop any food, in case the agent is carrying any
-                        action = DROP_FOOD
-                    else: # or just stay - next step the desire will update
-                        action = STAY
-
-                    self.desire = None # desire accomplished, find a new desire
-
-        elif(self.desire == EXPLORE):
-            if(not self.check_for_foodpiles_in_view(foodpiles_in_view)):
-                action = self.explore_randomly()
-            else:
-                self.desire = FIND_FOODPILE
-
-        if(self.desire == FIND_FOODPILE):
-
-            if(self.check_for_foodpiles_in_view(foodpiles_in_view)):  # we have a foodpile in view...
-                action, closest_foodpile_pos = self.go_to_closest_foodpile(agent_position, foodpiles_in_view)
-
-                # We don't need to follow a trail anymore
-                self.following_trail = False
-                self.promising_pheromone_pos = None
-                
-                if(self.check_if_destination_reached(agent_position, closest_foodpile_pos)):
-                    action = COLLECT_FOOD
-                    self.desire = None # desire accomplished, find a new desire
-
-            else: # if we don't have a foodpile in view...
-
-                if(self.following_trail): # if we're already following a trail...
-                    action = self.unknowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view)
-
-                elif(self.check_for_intense_pheromones_in_view(pheromones_in_view)): # check for high intensity pheromones
-
-                    self.promising_pheromone_pos = self.identify_most_intense_pheromone(agent_position, pheromones_in_view)
-
-                    action = self.unknowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view)
-                    self.following_trail = True
-
-                else: # if we don't have high intensity pheromones in view...
-                    action = self.explore_randomly() # we are still desiring to find food but need to pick an action! -> explore to find pheromones/foodpiles
-
-        # Avoid obstacles
-        if(action != STAY and action != COLLECT_FOOD and action != COLLECT_FOOD):
-            action = self.avoid_obstacles(action, agent_position, _, foodpiles_in_view)
-
-        return action
-    
     # ################# #
     # Auxiliary Methods #
     # ################# #
@@ -294,44 +218,7 @@ class DeliberativeAntAgent(AntAgent):
             action = self.explore_randomly()
 
         return action
-
-    def unknowledgeable_examine_promising_pheromones(self, agent_position, pheromones_in_view):
-
-        distances = np.array(self.promising_pheromone_pos) - np.array(agent_position)
-        abs_distances = np.absolute(distances)
-
-        if(abs_distances[0] + abs_distances[1] == 1 or (abs_distances[0] == 1 and abs_distances[1] == 1)):
-            promising_pheromone_relative_index = self.find_relative_index(agent_position, self.promising_pheromone_pos)
-
-            surrounding_pheromone_down = pheromones_in_view[promising_pheromone_relative_index + 5]
-            surrounding_pheromone_left = pheromones_in_view[promising_pheromone_relative_index - 1]
-            surrounding_pheromone_up = pheromones_in_view[promising_pheromone_relative_index - 5]
-            surrounding_pheromone_right = pheromones_in_view[promising_pheromone_relative_index + 1]
-
-            surrounding_pheromones = np.array([surrounding_pheromone_down, surrounding_pheromone_left, surrounding_pheromone_up, surrounding_pheromone_right])
-
-            if(not any(surrounding_pheromones)): # if there aren't any surrounding pheromones, we lost the trail..
-                self.following_trail = False
-                self.promising_pheromone_pos = None
-                self.desire = EXPLORE
-                action = self.explore_randomly()
-                return action
-
-            # If there are noteworthy pheromones, we want to find the minimun non null value
-            next_promising_pheromone =  np.argmin(surrounding_pheromones[np.where(surrounding_pheromones > 0)])
-
-            self.promising_pheromone_pos = self.find_global_pos(agent_position, surrounding_pheromones[next_promising_pheromone])
-
-            if(self.promising_pheromone_pos == None): # lost trail... 
-                self.following_trail = False
-                self.desire = EXPLORE
-                action = self.explore_randomly()
-                return action
-            
-
-        action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
-        return action
-
+    
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()

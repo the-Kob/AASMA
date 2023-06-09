@@ -65,13 +65,13 @@ class ReactiveAntAgent(AntAgent):
         return action_to_perform
 
     def _knowledgeable_reactive(self):
-        agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food, other_agents_in_view = self.observation_setup()
+        agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food, food_quantity, other_agents_in_view = self.observation_setup()
 
         if(has_food):
             if(self.check_if_destination_reached(agent_position, colony_position)):
                 action = DROP_FOOD
             else:
-                action = self.go_to_colony(agent_position, colony_position, has_food)
+                action = self.go_to_colony(agent_position, colony_position, has_food, food_quantity)
 
             self.following_trail = False
             self.promising_pheromone_pos = None

@@ -7,10 +7,10 @@ from typing import Sequence
 from aasma.utils import compare_results_teams, compare_results_storage
 from aasma.simplified_predator_prey import AntColonyEnv
 
-from aasma import AntAgent
 from single_reactive_agent import ReactiveAntAgent
 from single_deliberative_agent import DeliberativeAntAgent
 from single_random_agent import RandomAntAgent
+from single_role_agent import RoleAntAgent
 
 SEED_MULTIPLIER = 1 # CHANGE THIS IF YOU WANT TO TEST A DIFFERENT SET OF MAPS!
 
@@ -18,12 +18,14 @@ def run_multi_agent(environment: Env, n_episodes: int, max_steps: int) -> np.nda
     results_colonies_storage = {"Random Team" : np.zeros(max_steps), 
                                 "Deliberative Team": np.zeros(max_steps), 
                                 "Reactive Team": np.zeros(max_steps), 
-                                "Hybrid Team": np.zeros(max_steps)}
+                                "Hybrid Team": np.zeros(max_steps),
+                                "Role Team": np.zeros(max_steps)}
 
     results_teams = {"Random Team" : np.zeros(n_episodes), 
                     "Deliberative Team": np.zeros(n_episodes), 
                     "Reactive Team": np.zeros(n_episodes), 
-                    "Hybrid Team": np.zeros(n_episodes)}
+                    "Hybrid Team": np.zeros(n_episodes),
+                    "Role Team": np.zeros(n_episodes)}
     
     for episode in range(n_episodes):
         
@@ -55,8 +57,14 @@ def run_multi_agent(environment: Env, n_episodes: int, max_steps: int) -> np.nda
                 ReactiveAntAgent(agent_id=1, n_agents=4),
                 DeliberativeAntAgent(agent_id=2, n_agents=4),
                 DeliberativeAntAgent(agent_id=3, n_agents=4),
-            ] 
-         
+            ],
+            "Role Team": [
+                RoleAntAgent(agent_id=0, n_agents=4),
+                RoleAntAgent(agent_id=1, n_agents=4),
+                RoleAntAgent(agent_id=2, n_agents=4),
+                RoleAntAgent(agent_id=3, n_agents=4),
+            ]
+
         }
 
         print(f"Episode {episode}")
