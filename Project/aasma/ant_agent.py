@@ -81,12 +81,12 @@ class AntAgent(ABC):
         distances = np.array(point_of_interes_pos) - np.array(agent_position)
         abs_distances = np.absolute(distances)
         if abs_distances[0] > abs_distances[1]:
-            return self._close_horizontally(distances, has_food, food_quantity)
+            return self._close_horizontally(distances, has_food)
         elif abs_distances[0] < abs_distances[1]:
-            return self._close_vertically(distances, has_food, food_quantity)
+            return self._close_vertically(distances, has_food)
         else:
             roll = random.uniform(0, 1)
-            return self._close_horizontally(distances, has_food, food_quantity) if roll > 0.5 else self._close_vertically(distances, has_food, food_quantity)
+            return self._close_horizontally(distances, has_food) if roll > 0.5 else self._close_vertically(distances, has_food)
         
     def closest_point_of_interest(self, agent_position, points_of_interest):
         """
@@ -283,49 +283,28 @@ class AntAgent(ABC):
     # Private Methods #
     # ############### #
 
-    def _close_horizontally(self, distances, has_food, food_quantity):
+    def _close_horizontally(self, distances, has_food):
         if distances[0] > 0:
             if(has_food):
-                if (food_quantity == 2):
-                    if (self.steps_carrying_food % 2 == 0):
-                        return STAY
-                    else:  
-                        return RIGHT_PHERO
                 return RIGHT_PHERO
             else:
                 return RIGHT
-            
         elif distances[0] < 0:
             if(has_food):
-                if (food_quantity == 2):
-                    if (self.steps_carrying_food % 2 == 0):
-                        return STAY
-                    else:  
-                        return LEFT_PHERO
                 return LEFT_PHERO
             else:
                 return LEFT
         else:
             return STAY
 
-    def _close_vertically(self, distances, has_food, food_quantity):
+    def _close_vertically(self, distances, has_food):
         if distances[1] > 0:
             if(has_food):
-                if (food_quantity == 2):
-                    if ((not self.steps_carrying_food == 0) and self.steps_carrying_food % 2 == 0):
-                        return STAY
-                    else:  
-                        return DOWN_PHERO
                 return DOWN_PHERO
             else:
                 return DOWN
         elif distances[1] < 0:
             if(has_food):
-                if (food_quantity == 2):
-                    if (self.steps_carrying_food % 2 == 0):
-                        return STAY
-                    else:  
-                        return UP_PHERO
                 return UP_PHERO
             else:
                 return UP
