@@ -144,7 +144,7 @@ class DeliberativeAntAgent(AntAgent):
             else: # if we don't have a foodpile in view...
 
                 if(self.following_trail): # if we're already following a trail...
-                    action = self.knowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
+                    action = self.knowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view, colony_position, food_quantity)
                     if(action == STAY):
                         action = self.explore_randomly()
 
@@ -152,7 +152,7 @@ class DeliberativeAntAgent(AntAgent):
 
                     self.promising_pheromone_pos = self.identify_most_intense_pheromone(agent_position, pheromones_in_view)
 
-                    action = self.knowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
+                    action = self.knowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view, colony_position, food_quantity)
 
                 else: # if we don't have high intensity pheromones in view...
                     action = self.explore_randomly() # we are still desiring to find food but need to pick an action! -> explore to find pheromones/foodpiles
@@ -173,7 +173,7 @@ class DeliberativeAntAgent(AntAgent):
         else:
             print(f"\tDesire: {DESIRE_MEANING[self.desire]}")
 
-    def knowledgeable_examine_promising_pheromones(self, agent_position, pheromones_in_view, colony_position):
+    def knowledgeable_examine_promising_pheromones(self, agent_position, pheromones_in_view, colony_position, food_quantity):
 
         distances = np.array(self.promising_pheromone_pos) - np.array(agent_position)
         abs_distances = np.absolute(distances)
@@ -212,7 +212,7 @@ class DeliberativeAntAgent(AntAgent):
             
         self.following_trail = True
 
-        action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
+        action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False, food_quantity)
 
         if(action == STAY): # this avoids ants getting in infinite loop
             action = self.explore_randomly()

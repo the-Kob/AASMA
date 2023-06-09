@@ -52,7 +52,7 @@ def run_single_agent(environment: Env, n_episodes: int) -> np.ndarray:
             time.sleep(opt.render_sleep_time)
             observation = next_observation
 
-            DeliberativeAntAgent.express_desire(agent)
+            RoleAntAgent.express_desire(agent)
             print(f"\tAction: {environment.get_action_meanings()[action]}\n")
             print(f"\tObservation: {observation}")
 
@@ -134,7 +134,7 @@ class RoleAntAgent(DeliberativeAntAgent):
             else: # if we don't have a foodpile in view...
 
                 if(self.following_trail): # if we're already following a trail...
-                    action = self.knowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
+                    action = self.knowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view, colony_position, food_quantity)
                     if(action == STAY):
                         action = self.explore_randomly()
 
@@ -142,7 +142,7 @@ class RoleAntAgent(DeliberativeAntAgent):
 
                     self.promising_pheromone_pos = self.identify_most_intense_pheromone(agent_position, pheromones_in_view)
 
-                    action = self.knowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view, colony_position)
+                    action = self.knowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view, colony_position, food_quantity)
 
                 else: # if we don't have high intensity pheromones in view...
                     action = self.explore_randomly() # we are still desiring to find food but need to pick an action! -> explore to find pheromones/foodpiles
@@ -153,6 +153,7 @@ class RoleAntAgent(DeliberativeAntAgent):
                 # action = collect food from ant
             # else
                 # action = go to ant
+        
 
             if(self.check_for_other_ants_in_view(other_agents_in_view)):  # we have an agent in view...
                 action, closest_ant_pos = self.go_to_closest_ant(agent_position, other_agents_in_view)
@@ -162,6 +163,37 @@ class RoleAntAgent(DeliberativeAntAgent):
                     self.desire = None # desire accomplished, find a new desire
             else:
                 self.desire = FIND_FOODPILE
+
+
+        if(self.desire == FIND_FOODPILE):
+
+            if(self.check_for_foodpiles_in_view(foodpiles_in_view)):  # we have a foodpile in view...
+                action, closest_foodpile_pos = self.go_to_closest_foodpile(agent_position, foodpiles_in_view)
+
+                # We don't need to follow a trail anymore
+                self.following_trail = False
+                self.promising_pheromone_pos = None
+                
+                if(self.check_if_destination_reached(agent_position, closest_foodpile_pos)):
+                    action = COLLECT_FOOD
+                    self.desire = None # desire accomplished, find a new desire
+
+            else: # if we don't have a foodpile in view...
+
+                if(self.following_trail): # if we're already following a trail...
+                    action = self.knowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view, colony_position, food_quantity)
+                    if(action == STAY):
+                        action = self.explore_randomly()
+
+                elif(self.check_for_intense_pheromones_in_view(pheromones_in_view)): # check for high intensity pheromones
+
+                    self.promising_pheromone_pos = self.identify_most_intense_pheromone(agent_position, pheromones_in_view)
+
+                    action = self.knowledgeable_examine_promising_pheromones(agent_position, pheromones_in_view, colony_position, food_quantity)
+
+                else: # if we don't have high intensity pheromones in view...
+                    action = self.explore_randomly() # we are still desiring to find food but need to pick an action! -> explore to find pheromones/foodpiles
+
 
         # Avoid obstacles
         if(action != STAY and action != COLLECT_FOOD and action != COLLECT_FOOD and action != COLLECT_FOOD_FROM_ANT):
@@ -252,10 +284,14 @@ class RoleAntAgent(DeliberativeAntAgent):
             if(closest_ant == None or has_food == True):
                 potential = -100
             else:
-                print(agent_position)
-                print(closest_ant)
-                print(tuple(agent_position))
-                potential =  - self.manhattan_distance(agent_position, closest_ant)
+                distance = 0
+
+                for x1, x2 in zip(agent_position, closest_ant):
+                    difference = x2 - x1
+                    absolute_difference = abs(difference)
+                    distance += absolute_difference
+    
+                potential =  - distance
 
         elif role == GO_WORK:
             # potential is equal to the distance to the closest foodpile
