@@ -4,7 +4,7 @@ import numpy as np
 from gym import Env
 from typing import Sequence
 
-from aasma.utils import compare_results
+#from aasma.utils import compare_results
 from aasma.simplified_predator_prey import AntColonyEnv
 
 from aasma import AntAgent
