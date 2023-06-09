@@ -15,8 +15,8 @@ from single_deliberative_agent import DeliberativeAntAgent
 
 SEED_MULTIPLIER = 1 
 
-N_ACTIONS = 11
-DOWN, LEFT, UP, RIGHT, STAY, DOWN_PHERO, LEFT_PHERO, UP_PHERO, RIGHT_PHERO, COLLECT_FOOD, DROP_FOOD = range(N_ACTIONS)
+N_ACTIONS = 12
+DOWN, LEFT, UP, RIGHT, STAY, DOWN_PHERO, LEFT_PHERO, UP_PHERO, RIGHT_PHERO, COLLECT_FOOD, DROP_FOOD, COLLECT_FOOD_FROM_ANT = range(N_ACTIONS)
 
 N_ROLES = 2
 GO_HELP, GO_WORK = range(N_ROLES)
@@ -27,13 +27,14 @@ ROLES = {
 }
 
 
-N_POSSIBLE_DESIRES = 3
-GO_TO_COLONY, EXPLORE, FIND_FOODPILE = range(N_POSSIBLE_DESIRES)
+N_POSSIBLE_DESIRES = 4
+GO_TO_COLONY, EXPLORE, FIND_FOODPILE, HELP_ANT = range(N_POSSIBLE_DESIRES)
 
 DESIRE_MEANING = {
     0: "GO_TO_COLONY",
     1: "EXPLORE",
-    2: "FIND_FOODPILE"
+    2: "FIND_FOODPILE",
+    3: "HELP_ANT",
 }
 
 def manhattan_distance(point1, point2):
@@ -110,6 +111,7 @@ class RoleAgent(AntAgent):
         self.role_assign_period = role_assign_period
         self.curr_role = None
         self.steps_counter = 0
+        self.steps_carrying_food = 0
         self.desire = None
 
 
@@ -120,11 +122,13 @@ class RoleAgent(AntAgent):
     def _knowledgeable_deliberative(self): # The agent knows its own global position and the colony's position
 
         # BELIEFS
-        agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food, other_agents_in_view = self.observation_setup()
+        agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food, food_quantity, other_agents_in_view = self.observation_setup()
 
         # DESIRES
         if(self.desire == None):
             if(has_food or not self.check_if_destination_reached(agent_position, colony_position)): # has food or colony not visible or by default -> go to colony
+                
+            
                 self.desire = GO_TO_COLONY 
             else: # near colony
                 if(colony_storage < 100): # colony food storage is low -> find foodpile
@@ -135,7 +139,7 @@ class RoleAgent(AntAgent):
         # INTENTIONS
         if(self.desire == GO_TO_COLONY):
             if(not self.check_if_destination_reached(agent_position, colony_position)): # if the agent hasn't reached it yet...
-                action = self.go_to_colony(agent_position, colony_position, has_food) # move there
+                action = self.go_to_colony(agent_position, colony_position, has_food, food_quantity) # move there
 
             else: # if we have reached it already...
                 if(has_food): # drop any food, in case the agent is carrying any
@@ -180,11 +184,34 @@ class RoleAgent(AntAgent):
                 else: # if we don't have high intensity pheromones in view...
                     action = self.explore_randomly() # we are still desiring to find food but need to pick an action! -> explore to find pheromones/foodpiles
 
+        elif(self.desire == HELP_ANT):
+            # find closest ant in need of help
+            # if close enough
+                # action = collect food from ant
+            # else
+                # action = go to ant
+        
+
+            if(self.check_for_other_ants_in_view(other_agents_in_view)):  # we have an agent in view...
+                action, closest_ant_pos = self.go_to_closest_ant(agent_position, other_agents_in_view)
+        
+                if(self.check_if_destination_reached(agent_position, closest_ant_pos)):
+                    action = COLLECT_FOOD_FROM_ANT
+                    self.desire = None # desire accomplished, find a new desire
+            else:
+                self.desire = FIND_FOODPILE
+
         # Avoid obstacles
-        if(action != STAY and action != COLLECT_FOOD and action != COLLECT_FOOD):
+        if(action != STAY and action != COLLECT_FOOD and action != COLLECT_FOOD and action != COLLECT_FOOD_FROM_ANT):
             action = self.avoid_obstacles(action, agent_position, colony_position, foodpiles_in_view, other_agents_in_view)
 
         return action
+    
+        
+        
+
+    
+    
 
     
     # ################# #
@@ -236,7 +263,7 @@ class RoleAgent(AntAgent):
             
         self.following_trail = True
 
-        action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False)
+        action = self.direction_to_go(agent_position, self.promising_pheromone_pos, False, 0)
 
         if(action == STAY): # this avoids ants getting in infinite loop
             action = self.explore_randomly()
@@ -288,7 +315,10 @@ class RoleAgent(AntAgent):
     
 
     def closest_carrying_food_ant(self, agent_position, other_agents_in_view):
-            other_agents_indices = np.where(other_agents_in_view == 2)[0] # gather for non null indices
+            #other_agents_in_view_final = del other_agents_in_view[0]
+            other_agents_in_view_copy = np.copy(other_agents_in_view)
+            other_agents_in_view_copy[12] = 0
+            other_agents_indices = np.where(other_agents_in_view_copy == 2)[0] # gather for non null indices
 
             # Get corresponding positions in array format
             other_agents_positions = np.zeros(len(other_agents_indices) * 2)
@@ -326,23 +356,24 @@ class RoleAgent(AntAgent):
 
 
     def potential_function(self, agent_position, role, other_agents_in_view, colony_position, foodpiles_in_view):
+        agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food,food_quantity, other_agents_in_view = self.observation_setup()
         closest_foodpile = self.closest_foodpile_position(agent_position, foodpiles_in_view)
         closest_ant = self.closest_carrying_food_ant(agent_position, other_agents_in_view)
 
         if role == GO_HELP:
-            # potential is equal to the distance to the closest ant carrying food£
-            # 
-            if(closest_ant == None):
+            # pote
+            if(closest_ant == None or has_food == True):
                 potential = -100
             else:
-                potential =  manhattan_distance(agent_position,closest_ant)
+                potential =  - manhattan_distance(agent_position,closest_ant)
 
         elif role == GO_WORK:
             # potential is equal to the distance to the closest foodpile
             if(closest_foodpile == None):
-                potential = 100
+                potential = -50
+
             else:
-                potential =  manhattan_distance(agent_position, closest_foodpile)
+                potential =  0
         
         print(f"Agent {self.agent_id} - Role {role} - Potential {potential}")
 
@@ -393,80 +424,35 @@ class RoleAgent(AntAgent):
 
 
     def action(self) -> int:
+        agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food, food_quantity, other_agents_in_view = self.observation_setup()
+
         # Compute potential-based role assignment every `role_assign_period` steps.
         if self.curr_role is None or self.steps_counter % self.role_assign_period == 0:
             role_assignments = self.role_assignment()
             
 
         self.steps_counter += 1
+        if food_quantity == 2:
+            self.steps_carrying_food += 1
+
         action = self.choose_action()
+        
         print (f"Action {action}")
 
         return action
 
     def choose_action(self):
         print(f"desire: {self.desire}")
-        agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food, other_agents_in_view = self.observation_setup()
-        if (self.curr_role == 0 and has_food == 0):
-            direction_to_go =self.direction_to_go(agent_position, self.closest_carrying_food_ant(agent_position, other_agents_in_view), False)
-            if self.check_if_destination_reached(agent_position, direction_to_go):
-                return COLLECT_FOOD
+        agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food, food_quantity, other_agents_in_view = self.observation_setup()
+        if (self.curr_role == 0 and has_food == 0): 
+            self.desire = HELP_ANT
+            return self._knowledgeable_deliberative()
             
-        elif (self.curr_role == 1):
+        else:
            
             return self._knowledgeable_deliberative()
             
 
-    def get_target_adj_locs(self, loc) -> list():
-        target_x = loc[0]
-        target_y = loc[1]
-        return [
-            (target_x, target_y - 1),
-            (target_x, target_y + 1),
-            (target_x - 1, target_y),
-            (target_x + 1, target_y),
-        ]
-
-
-    def advance_to_pos(self, agent_pos: tuple, prey_pos: tuple, agent_dest: int) -> int:
-        """
-        Choose movement action to advance agent towards the destination around prey
-        :param agent_pos: current agent position
-        :param prey_pos: prey position
-        :param agent_dest: agent destination in relation to prey (0 for NORTH, 1 for SOUTH,
-                            2 for WEST, and 3 for EAST)
-        :return: movement index
-        """
-
-        def _move_vertically(distances) -> int:
-            if distances[1] > 0:
-                return DOWN
-            elif distances[1] < 0:
-                return UP
-            else:
-                return STAY
-
-        def _move_horizontally(distances) -> int:
-            if distances[0] > 0:
-                return RIGHT
-            elif distances[0] < 0:
-                return LEFT
-            else:
-                return STAY
-
-        target_adj_locs = self.get_target_adj_locs(prey_pos)
-        distance_dest = np.array(target_adj_locs[agent_dest]) - np.array(agent_pos)
-        abs_distances = np.absolute(distance_dest)
-        if abs_distances[0] > abs_distances[1]:
-            return _move_horizontally(distance_dest)
-        elif abs_distances[0] < abs_distances[1]:
-            return _move_vertically(distance_dest)
-        else:
-            roll = np.random.uniform(0, 1)
-            return _move_horizontally(distance_dest) if roll > 0.5 else _move_vertically(distance_dest)
-
-
-    
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()

@@ -4,8 +4,8 @@ import numpy as np
 from scipy.spatial.distance import cityblock
 from abc import ABC, abstractmethod
 
-N_ACTIONS = 11
-DOWN, LEFT, UP, RIGHT, STAY, DOWN_PHERO, LEFT_PHERO, UP_PHERO, RIGHT_PHERO, COLLECT_FOOD, DROP_FOOD = range(N_ACTIONS)
+N_ACTIONS = 12
+DOWN, LEFT, UP, RIGHT, STAY, DOWN_PHERO, LEFT_PHERO, UP_PHERO, RIGHT_PHERO, COLLECT_FOOD, DROP_FOOD, COLLECT_FOOD_FROM_ANT = range(N_ACTIONS)
 
 class AntAgent(ABC):
     def __init__(self, name: str, agent_id, n_agents, knowledgeable):
@@ -32,6 +32,8 @@ class AntAgent(ABC):
     # ################# #
     # Auxiliary Methods #
     # ################# #
+
+    
 
     def find_global_pos(self, agent_pos, object_relative_position_index):
         
@@ -72,7 +74,7 @@ class AntAgent(ABC):
  
         return int(object_relative_position_index)
 
-    def direction_to_go(self, agent_position, point_of_interes_pos, has_food):
+    def direction_to_go(self, agent_position, point_of_interes_pos, has_food, food_quantity):
         """
         Given the position of the agent and the position of a prey,
         returns the action to take in order to close the distance
@@ -81,12 +83,12 @@ class AntAgent(ABC):
         distances = np.array(point_of_interes_pos) - np.array(agent_position)
         abs_distances = np.absolute(distances)
         if abs_distances[0] > abs_distances[1]:
-            return self._close_horizontally(distances, has_food) 
+            return self._close_horizontally(distances, has_food, food_quantity)
         elif abs_distances[0] < abs_distances[1]:
-            return self._close_vertically(distances, has_food)
+            return self._close_vertically(distances, has_food, food_quantity)
         else:
             roll = random.uniform(0, 1)
-            return self._close_horizontally(distances, has_food) if roll > 0.5 else self._close_vertically(distances, has_food)
+            return self._close_horizontally(distances, has_food, food_quantity) if roll > 0.5 else self._close_vertically(distances, has_food, food_quantity)
         
     def closest_point_of_interest(self, agent_position, points_of_interest):
         """
@@ -147,8 +149,8 @@ class AntAgent(ABC):
         elif abs_distances[0] + abs_distances[1] <= 1:
             return True
     
-    def go_to_colony(self, agent_position, colony_position, has_food):
-        return self.direction_to_go(agent_position, colony_position, has_food)
+    def go_to_colony(self, agent_position, colony_position, has_food, food_quantity):
+        return self.direction_to_go(agent_position, colony_position, has_food, food_quantity)
     
     def explore_randomly(self):
         
@@ -177,6 +179,12 @@ class AntAgent(ABC):
 
     def check_for_foodpiles_in_view(self, foodpiles_in_view):
         return any(foodpiles_in_view) # if there are any food_piles_in_view
+    
+    def check_for_other_ants_in_view(self, other_agents_in_view):
+        #other_agents_in_view_copy = other_agents_in_view.copy()
+        #other_agents_in_view_copy = np.where(other_agents_in_view == 2)[0] # gather for non null indices
+        #other_agents_in_view[12] = 0 # remove the agent itself from the list of other agents in view
+        return any(other_agents_in_view) # if there are any other_ants_in_view
         
     def check_for_intense_pheromones_in_view(self, pheromones_in_view):
         pheromones_of_interest = np.where(pheromones_in_view > 5)[0] # SUBSITUTE FOR initial_pheromone_intensity OF ENV
@@ -198,7 +206,28 @@ class AntAgent(ABC):
         # Check closest foodpile position and move there
         closest_foodpile_position = self.closest_point_of_interest(agent_position, foodpiles_positions)
 
-        return self.direction_to_go(agent_position, closest_foodpile_position, False), closest_foodpile_position
+        return self.direction_to_go(agent_position, closest_foodpile_position, False, 0), closest_foodpile_position
+    
+    def go_to_closest_ant(self, agent_position, other_agents_in_view):
+        other_agents_in_view_copy = other_agents_in_view.copy()
+        other_agents_in_view_copy[12] = 0 # remove the agent itself from the list of other agents in view
+        ants_indices = np.where( other_agents_in_view_copy == 2)[0] # gather for non null indices
+
+        # Get corresponding positions in array format
+        ants_positions = np.zeros(len(ants_indices) * 2)
+
+
+        for other_agent_i in range(len(ants_indices)): 
+            other_agent_position_i_pos = self.find_global_pos(agent_position, ants_indices[other_agent_i])
+            ants_positions[other_agent_i * 2] =  other_agent_position_i_pos[0]
+            ants_positions[other_agent_i * 2 + 1] =  other_agent_position_i_pos[1]
+           
+
+        # Check closest foodpile position and move there
+        closest_ant_position = self.closest_point_of_interest(agent_position, ants_positions)
+
+        return self.direction_to_go(agent_position, closest_ant_position, False, 0), closest_ant_position
+
     
     def identify_most_intense_pheromone(self, agent_position, pheromones_in_view):
 
@@ -240,37 +269,59 @@ class AntAgent(ABC):
 
         colony_storage = self.observation[54] # FOR ONLY 1 COLONY
         has_food = any([self.observation[55]])
+        food_quantity = self.observation[55]
 
         other_agents_in_view = self.observation[56:]
 
-        return agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food, other_agents_in_view
+        return agent_position, colony_position, foodpiles_in_view, pheromones_in_view, colony_storage, has_food, food_quantity, other_agents_in_view
 
     # ############### #
     # Private Methods #
     # ############### #
 
-    def _close_horizontally(self, distances, has_food):
+    def _close_horizontally(self, distances, has_food, food_quantity):
         if distances[0] > 0:
             if(has_food):
+                if (food_quantity == 2):
+                    if (self.steps_carrying_food % 2 == 0):
+                        return STAY
+                    else:  
+                        return RIGHT_PHERO
                 return RIGHT_PHERO
             else:
                 return RIGHT
+            
         elif distances[0] < 0:
             if(has_food):
+                if (food_quantity == 2):
+                    if (self.steps_carrying_food % 2 == 0):
+                        return STAY
+                    else:  
+                        return LEFT_PHERO
                 return LEFT_PHERO
             else:
                 return LEFT
         else:
             return STAY
 
-    def _close_vertically(self, distances, has_food):
+    def _close_vertically(self, distances, has_food, food_quantity):
         if distances[1] > 0:
             if(has_food):
+                if (food_quantity == 2):
+                    if (self.steps_carrying_food % 2 == 0):
+                        return STAY
+                    else:  
+                        return DOWN_PHERO
                 return DOWN_PHERO
             else:
                 return DOWN
         elif distances[1] < 0:
             if(has_food):
+                if (food_quantity == 2):
+                    if (self.steps_carrying_food % 2 == 0):
+                        return STAY
+                    else:  
+                        return UP_PHERO
                 return UP_PHERO
             else:
                 return UP

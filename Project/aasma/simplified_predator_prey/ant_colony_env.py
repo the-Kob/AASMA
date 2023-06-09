@@ -189,6 +189,24 @@ class AntColonyEnv(gym.Env):
                         if('A' not in self._full_obs[col][row]):
                             self._full_obs[col][row] = PRE_IDS['empty'] # this needs to be switched
 
+
+        for agent_i, action in enumerate(agents_action):
+                if(action == 11 and self.has_food[agent_i] == 0):
+                    # If there are enough agents nearby to capture the foodpile...
+                    ant_neighbour_count, surrounding_agents_i = self._neighbour_agents(self.agent_pos[agent_i])
+                    
+                    if ant_neighbour_count >= 1: # only takes 1 ant to capture piece of foodpile
+                        for i in range(ant_neighbour_count): # if the surrounding agents don't have food and choose to collect food..
+                            other_agent_i = surrounding_agents_i[i]
+                        
+
+                            if(self.has_food[other_agent_i] == 2):
+
+                                # Signal flag
+                                self.has_food[agent_i] = 1
+                                self.has_food[other_agent_i] = 1
+                                break
+
         for agent_i, action in enumerate(agents_action):
             if not (self._agent_dones[agent_i]):
                 self.__update_agent_pos(agent_i, action) # this was also update for the pheromones
@@ -203,6 +221,7 @@ class AntColonyEnv(gym.Env):
                 if ant_neighbour_count >= 1: # only takes 1 ant to capture piece of foodpile
                     for i in range(ant_neighbour_count): # if the surrounding agents don't have food and choose to collect food..
                         agent_i = surrounding_agents_i[i]
+                       
                         action = agents_action[agent_i]
 
                         if(self.has_food[agent_i] == 0 and action == 9):
@@ -220,6 +239,13 @@ class AntColonyEnv(gym.Env):
 
                             # Signal flag
                             self.has_food[agent_i] = self.foodpile_capacity_decrement
+
+
+
+        # for agent_i in range(self.n_agents):
+        #  ant_neighbour_count, surrounding_agents_i = self._neighbour_agents(self.agent_pos[agent_i])
+        #self.has_food[agent_i] = dajdasd
+                
 
 
         # Update colonies storage
@@ -456,6 +482,8 @@ class AntColonyEnv(gym.Env):
             pass
         elif move == 10: # drop food
             pass
+        elif move == 11: # 
+            pass
         else:
             raise Exception('Action Not found!')
         
@@ -666,7 +694,8 @@ ACTION_MEANING = {
     7: "UP_PHERO",
     8: "RIGHT_PHERO",
     9: "COLLECT_FOOD",
-    10: "DROP_FOOD"
+    10: "DROP_FOOD",
+    11: "COLLECT_FOOD_FROM_ANT",
 }
 
 PRE_IDS = {
