@@ -168,7 +168,7 @@ def compare_results_teams(results, confidence=0.95, title="Agents Comparison", m
     )
 
 def compare_results_storage(results, title="Agents Comparison", metric="Colony Storage per Step", colors=None):
-    N = np.arange(results[1]['Random Team'].size)
+    N = np.arange(results[1]['Deliberative Team'].size)
 
     plot_line_graph(
         results=results,

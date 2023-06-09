@@ -124,4 +124,3 @@ if __name__ == '__main__':
         title="Teams Comparison on 'Ant Colony' Environment",
         colors=["orange", "green", "blue", "red"]
     )
-

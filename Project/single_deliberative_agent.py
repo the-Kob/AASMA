@@ -353,6 +353,3 @@ if __name__ == '__main__':
 
     # Run single ant
     results = run_single_agent(environment, opt.episodes)
-
-
-    
