@@ -113,8 +113,26 @@ def plot_confidence_bar(names, means, std_devs, N, title, x_label, y_label, conf
         plt.show()
     plt.close()
 
+def plot_line_graph(results, N, title, x_label, y_label, show=False, filename=None, colors=None, yscale=None):
+    for team, values in results[1].items():
+        plt.plot(N, values, label=team)
 
-def compare_results(results, confidence=0.95, title="Agents Comparison", metric="Steps Per Episode", colors=None):
+    plt.title(title)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.legend()
+
+    if yscale is not None:
+        plt.yscale(yscale)
+    plt.tight_layout()
+    if filename is not None:
+        plt.savefig(filename)
+    if show:
+        plt.show()
+    plt.close()
+
+
+def compare_results_teams(results, confidence=0.95, title="Agents Comparison", metric="Steps Per Episode", colors=None):
 
     """Displays a bar plot comparing the performance of different agents/teams.
 
@@ -134,10 +152,10 @@ def compare_results(results, confidence=0.95, title="Agents Comparison", metric=
 
         """
 
-    names = list(results.keys())
-    means = [result.mean() for result in results.values()]
-    stds = [result.std() for result in results.values()]
-    N = [result.size for result in results.values()]
+    names = list(results[0].keys())
+    means = [result.mean() for result in results[0].values()]
+    stds = [result.std() for result in results[0].values()]
+    N = [result.size for result in results[0].values()]
 
     plot_confidence_bar(
         names=names,
@@ -149,5 +167,14 @@ def compare_results(results, confidence=0.95, title="Agents Comparison", metric=
         confidence=confidence, show=True, colors=colors
     )
 
+def compare_results_storage(results, title="Agents Comparison", metric="Colony Storage per Step", colors=None):
+    N = np.arange(results[1]['Deliberative Team'].size)
 
+    plot_line_graph(
+        results=results,
+        N=N,
+        title=title,
+        x_label="Steps", y_label=f"Avg. {metric}",
+        show=True, colors=colors
+    )
 

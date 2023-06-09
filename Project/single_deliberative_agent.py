@@ -7,7 +7,6 @@ from scipy.spatial.distance import cityblock
 from gym import Env
 
 from aasma.ant_agent import AntAgent
-from aasma.utils import compare_results
 from aasma.wrappers import SingleAgentWrapper
 from aasma.simplified_predator_prey import AntColonyEnv
 
@@ -354,6 +353,3 @@ if __name__ == '__main__':
 
     # Run single ant
     results = run_single_agent(environment, opt.episodes)
-
-
-    
